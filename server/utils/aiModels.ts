@@ -1,14 +1,38 @@
+/**
+ * @file AI model resolution and availability validation.
+ *
+ * Maps model identifiers (e.g., `minimax/MiniMax-M2.7`) to AI SDK language model
+ * instances by selecting the appropriate provider client with credentials from
+ * runtime config. Also validates that Ollama models exist at runtime since they
+ * can be added or removed while the application is running.
+ */
 import type { H3Event } from 'h3'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createMinimax } from 'vercel-minimax-ai-provider'
 import type { ModelProvider } from '#shared/utils/models'
-import { isStaticModel, isSupportedModel } from '#shared/utils/models'
-import { getOllamaOpenAIBaseUrl, hasOllamaModel } from './ollama'
+import { isSelectableModel, isStaticModel, isSupportedModel } from '#shared/utils/models'
+import {
+  getOllamaOpenAIBaseUrlFromConfig,
+  hasOllamaModel,
+  type OllamaRuntimeConfig
+} from './ollama'
 
 /** Supported AI model provider names. */
 type ProviderName = ModelProvider
 
 const SUPPORTED_PROVIDERS: ProviderName[] = ['minimax', 'glm', 'ollama']
+
+/** Runtime config subset required to resolve supported language models. */
+export interface LanguageModelRuntimeConfig extends OllamaRuntimeConfig {
+  /** MiniMax API key. */
+  minimaxApiKey?: unknown
+  /** Optional custom MiniMax base URL. */
+  minimaxBaseUrl?: unknown
+  /** GLM API key. */
+  glmApiKey?: unknown
+  /** GLM OpenAI-compatible base URL. */
+  glmBaseUrl?: unknown
+}
 
 /**
  * Parses a model identifier into its provider and model ID components.
@@ -64,9 +88,21 @@ function requireRuntimeSecret(value: unknown, name: string): string {
  * @returns A configured language model instance ready for use with the AI SDK.
  */
 export function resolveLanguageModel(model: string, event: H3Event) {
-  const config = useRuntimeConfig(event)
+  return resolveLanguageModelFromConfig(model, useRuntimeConfig(event))
+}
 
-  if (!isSupportedModel(model)) {
+/**
+ * Resolves a model identifier into an AI SDK language model instance from a
+ * runtime config object.
+ *
+ * Use this when no H3 event exists, such as Nitro background plugins.
+ *
+ * @param model - The full model identifier (e.g., `minimax/MiniMax-M2.7`).
+ * @param config - Runtime configuration with provider credentials.
+ * @returns A configured language model instance ready for use with the AI SDK.
+ */
+export function resolveLanguageModelFromConfig(model: string, config: LanguageModelRuntimeConfig) {
+  if (!isSelectableModel(model)) {
     throw createError({
       statusCode: 400,
       statusMessage: `Unsupported model: ${model}`
@@ -103,7 +139,7 @@ export function resolveLanguageModel(model: string, event: H3Event) {
   const ollama = createOpenAICompatible({
     name: 'ollama',
     apiKey: 'ollama',
-    baseURL: getOllamaOpenAIBaseUrl(event)
+    baseURL: getOllamaOpenAIBaseUrlFromConfig(config)
   })
 
   return ollama(modelId)

@@ -2,6 +2,7 @@ import type { PaperlessDocumentType } from '~~/shared/types/paperless'
 import { z } from 'zod'
 
 const bodySchema = z.object({
+  /** Document type name (required, minimum 1 character). */
   name: z.string().min(1)
 })
 

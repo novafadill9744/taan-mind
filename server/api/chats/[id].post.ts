@@ -16,7 +16,7 @@ import { assertLanguageModelAvailable, resolveLanguageModel } from '../../utils/
 
 defineRouteMeta({
   openAPI: {
-    description: 'Chat with AI.',
+    description: 'Chat with AI. Streams responses using the AI SDK UI message protocol.',
     tags: ['ai']
   }
 })
@@ -45,9 +45,11 @@ export default defineEventHandler(async event => {
   const { model, messages } = await readValidatedBody(
     event,
     z.object({
+      /** AI model identifier in `provider/modelId` format. */
       model: z.string().refine(isSupportedModel, {
         message: 'Invalid model'
       }),
+      /** Array of UI messages in the conversation (including the new user message). */
       messages: z.array(z.custom<UIMessage>())
     }).parse
   )

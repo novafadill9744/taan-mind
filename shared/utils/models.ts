@@ -1,3 +1,10 @@
+/**
+ * @file AI model registry, type definitions, and validation helpers.
+ *
+ * Defines the static model catalog (MiniMax, GLM), dynamic Ollama model support,
+ * document processing settings types, and type guards used across server and client
+ * to validate and resolve model identifiers.
+ */
 /** Supported AI model provider names. */
 export type ModelProvider = 'minimax' | 'glm' | 'ollama'
 
@@ -46,6 +53,50 @@ export const MODELS: ModelOption[] = [
 /** The default model used when no selection has been made. */
 export const DEFAULT_MODEL = MODELS[0]!.value
 
+/** Case-insensitive marker used by Ollama OCR-only model names. */
+const OCR_MODEL_NAME_MARKER = 'ocr'
+
+/** Server-side setting key for the Paperless document enrichment model. */
+export const DOCUMENT_PROCESSING_MODEL_SETTING_KEY = 'document_processing_model'
+
+/** Default enrichment model used by the Paperless document processor. */
+export const DEFAULT_DOCUMENT_PROCESSING_MODEL = DEFAULT_MODEL
+
+/** Server-side Paperless document processing settings editable from the UI. */
+export interface DocumentProcessingSettings {
+  /** Model used after OCR to format text and extract Paperless metadata. */
+  enrichmentModel: ModelId
+}
+
+/** Payload accepted when updating document processing settings. */
+export interface DocumentProcessingSettingsPayload {
+  /** Model used after OCR to format text and extract Paperless metadata. */
+  enrichmentModel: ModelId
+}
+
+/**
+ * Checks whether an Ollama model name is intended only for OCR extraction.
+ *
+ * @param value - Raw Ollama model name, for example `glm-ocr:latest`.
+ * @returns `true` when the model name contains `ocr`, case-insensitive.
+ */
+export function isOcrOnlyModelName(value: string): boolean {
+  return value.toLowerCase().includes(OCR_MODEL_NAME_MARKER)
+}
+
+/**
+ * Checks whether an Ollama model should appear in chat/enrichment selectors.
+ *
+ * OCR-only models remain available through `/api/ocr/models`, but are hidden
+ * from general model selectors because they only extract document content.
+ *
+ * @param value - Raw Ollama model name.
+ * @returns `true` when the model can be selected for chat/enrichment.
+ */
+export function isSelectableOllamaModelName(value: string): boolean {
+  return !isOcrOnlyModelName(value)
+}
+
 /**
  * Type guard that checks whether a string is a statically configured model ID.
  *
@@ -78,4 +129,26 @@ export function isOllamaModel(value: string): value is OllamaModelId {
  */
 export function isSupportedModel(value: string): value is ModelId {
   return isStaticModel(value) || isOllamaModel(value)
+}
+
+/**
+ * Type guard that checks whether a model can appear in chat/enrichment selectors.
+ *
+ * Static provider models are selectable. Runtime Ollama models are selectable
+ * only when they are not OCR-only models.
+ *
+ * @param value - The model ID to check.
+ * @returns `true` if the model can be selected for chat/enrichment.
+ */
+export function isSelectableModel(value: string): value is ModelId {
+  if (!isSupportedModel(value)) {
+    return false
+  }
+
+  if (isOllamaModel(value)) {
+    const [, ...modelParts] = value.split('/')
+    return isSelectableOllamaModelName(modelParts.join('/'))
+  }
+
+  return true
 }

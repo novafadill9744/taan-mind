@@ -19,6 +19,8 @@ export function usePersonality() {
   const personality = useCookie<PersonalityId>('personality', {
     default: () => DEFAULT_PERSONALITY
   })
+
+  /** Custom personalities fetched from the server for the current session. */
   const { customPersonalities, status, refresh } = useCustomPersonalities()
 
   // Reset malformed cookie values immediately. Custom IDs are verified after fetch completes.
@@ -26,6 +28,7 @@ export function usePersonality() {
     personality.value = DEFAULT_PERSONALITY
   }
 
+  /** Maps server-side custom personalities into UI-selectable options. */
   const customPersonalityOptions = computed(() =>
     (customPersonalities.value ?? []).map(customPersonality => ({
       label: customPersonality.label,
@@ -36,11 +39,15 @@ export function usePersonality() {
     }))
   )
 
+  /** Combined list of built-in and custom personality options for the selector. */
   const personalities = computed(() => [...PERSONALITIES, ...customPersonalityOptions.value])
 
+  // Once custom personalities are loaded, verify the stored selection is still valid.
+  // Falls back to the default personality if the selected one was deleted or is unavailable.
   watch(
     [personalities, status],
     () => {
+      // Wait until the custom personalities fetch completes before validating
       if (status.value === 'pending') return
       if (!personalities.value.some(option => option.value === personality.value)) {
         personality.value = DEFAULT_PERSONALITY

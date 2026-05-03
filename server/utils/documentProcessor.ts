@@ -1,3 +1,9 @@
+/**
+ * @file Document processing utilities for AI-powered OCR text formatting and metadata extraction.
+ *
+ * Provides helper functions used by the document-processor plugin and API routes
+ * to clean OCR output and extract structured metadata (title, tags, correspondent, document type).
+ */
 import { generateText } from 'ai'
 import type { H3Event } from 'h3'
 

@@ -1,8 +1,11 @@
 <!--
   Indicator.vue - Animated matrix dot indicator
   Displays a 4x4 grid of dots that animate through predefined patterns
-  to indicate that the AI is processing/thinking. Cycles through patterns
-  with a 120ms interval.
+  to indicate that the AI is processing/thinking. Features:
+  - 4 different animation patterns cycled in sequence
+  - 120ms interval between animation steps
+  - Smooth opacity and scale transitions on active/inactive dots
+  - Client-only rendering (no SSR) since it's purely decorative
 -->
 <script setup lang="ts">
 /** Grid dimensions */

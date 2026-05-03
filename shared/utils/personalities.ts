@@ -1,3 +1,11 @@
+/**
+ * @file AI personality definitions and validation helpers.
+ *
+ * Manages built-in personalities (Friendly, Professional, Enthusiastic) and
+ * provides utilities to work with custom personalities stored in the database.
+ * Supports type-safe identification, validation, and prompt resolution for both
+ * default and user-defined personalities.
+ */
 /** Static personality identifiers bundled with the application. */
 export type DefaultPersonalityId = 'friendly' | 'professional' | 'enthusiastic'
 

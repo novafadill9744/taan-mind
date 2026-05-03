@@ -1,8 +1,12 @@
 <!--
   Chart.vue - Line chart tool visualization
   Renders a line chart based on the output of the AI's chart tool invocation.
-  Shows loading/error states while the tool is in progress, and displays a
-  fully interactive line chart with custom tooltips when data is available.
+  Handles three states:
+  - Loading: shows a spinner with "Generating chart..." message
+  - Error: shows a warning icon with error message
+  - Success: displays a fully interactive line chart with custom tooltips,
+    series legend, and decorative dot-pattern background
+  Uses the visx-based charting library with curve type MonotoneX for smooth lines.
 -->
 <script setup lang="ts">
 /** Props: the chart tool invocation containing state and output data */
@@ -40,8 +44,10 @@ const message = computed(() => {
 })
 
 /**
- * Creates an X-axis formatter function that maps tick indices
- * to the corresponding xKey values from the chart data.
+ * Creates an X-axis tick formatter function that maps numeric tick indices
+ * to the corresponding xKey values from the chart data array.
+ * @param invocation - The chart tool invocation containing output data and xKey
+ * @returns A formatter function for the chart's X-axis
  */
 const xFormatter = (invocation: ChartUIToolInvocation) => {
   return (tick: number, _i?: number, _ticks?: number[]): string => {
@@ -51,8 +57,11 @@ const xFormatter = (invocation: ChartUIToolInvocation) => {
 }
 
 /**
- * Builds a categories map from the chart series configuration,
- * mapping each series key to its display name and color.
+ * Builds a categories map from the chart series configuration.
+ * Each series key is mapped to an object with its display name and color,
+ * used by the chart legend and tooltip rendering.
+ * @param invocation - The chart tool invocation containing series definitions
+ * @returns A record mapping series keys to their legend item configuration
  */
 const categories = (
   invocation: ChartUIToolInvocation
@@ -74,8 +83,12 @@ const categories = (
 }
 
 /**
- * Formats a numeric or string value for display in tooltips.
- * Integers get locale formatting, decimals are limited to 2 fraction digits.
+ * Formats a numeric or string value for display in chart tooltips.
+ * Integers get locale-based formatting (e.g., "1,234").
+ * Decimals are limited to a maximum of 2 fraction digits.
+ * Returns 'N/A' for undefined/null values.
+ * @param value - The value to format
+ * @returns A formatted string representation
  */
 const formatValue = (value: string | number | undefined): string => {
   if (value === undefined || value === null) return 'N/A'

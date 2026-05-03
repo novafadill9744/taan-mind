@@ -2,8 +2,11 @@ import type { PaperlessTag, PaperlessPaginatedResponse } from '~~/shared/types/p
 import { z } from 'zod'
 
 const querySchema = z.object({
+  /** Page number for pagination (1-based). */
   page: z.coerce.number().optional(),
+  /** Number of items per page. */
   page_size: z.coerce.number().optional(),
+  /** Field to order results by (e.g., `'name'`, `'-name'`). */
   ordering: z.string().optional()
 })
 

@@ -1,9 +1,12 @@
 <!--
   MessageContent.vue - Chat message content renderer
-  Renders the different parts of a chat message including:
-  - Thinking/reasoning blocks (collapsible)
-  - Tool invocations (charts, weather, web search)
-  - Text content (markdown for assistant, plain text or edit mode for user)
+  Iterates over the merged message parts and renders each type appropriately:
+  - Reasoning/thinking blocks: collapsible section with timer (ChatMessageThinking)
+  - Tool invocations: dispatched to the correct tool component:
+    - 'chart' → ChatToolChart (client-only, uses canvas/SVG rendering)
+    - 'weather' → ChatToolWeather (gradient card with forecast)
+    - 'web_search' / 'google_search' → UChatTool with ChatToolSources
+  - Text content: markdown for assistant messages, plain text or edit mode for user messages
 -->
 <script setup lang="ts">
 import { isReasoningUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'

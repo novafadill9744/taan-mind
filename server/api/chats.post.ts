@@ -17,9 +17,13 @@ export default defineEventHandler(async event => {
   const { id, message, personality, documentId } = await readValidatedBody(
     event,
     z.object({
+      /** Client-generated chat ID for idempotent creation. */
       id: z.string(),
+      /** First user message to start the conversation. */
       message: z.custom<UIMessage>(),
+      /** Personality identifier (default or `custom:<uuid>`). */
       personality: z.string().default('friendly'),
+      /** Optional Paperless document ID to attach as context. */
       documentId: z.number().nullable().optional()
     }).parse
   )

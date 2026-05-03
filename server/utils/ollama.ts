@@ -1,3 +1,10 @@
+/**
+ * @file Ollama API client and model discovery.
+ *
+ * Provides helpers to interact with the Ollama native API (`/api/tags`, `/api/generate`)
+ * and the OpenAI-compatible API (`/v1`). Supports both event-based and config-based
+ * URL resolution so the same functions work inside HTTP handlers and Nitro plugins.
+ */
 import type { H3Event } from 'h3'
 
 /** Model entry returned by Ollama's `/api/tags` endpoint. */
@@ -20,6 +27,29 @@ interface OllamaTagsResponse {
   models?: OllamaModel[]
 }
 
+/** Runtime config subset required by Ollama helpers. */
+export interface OllamaRuntimeConfig {
+  /** Base URL for the Ollama native API. */
+  ollamaBaseUrl?: unknown
+}
+
+/**
+ * Returns the configured Ollama base URL from a runtime config object.
+ *
+ * @param config - Runtime configuration containing `ollamaBaseUrl`.
+ * @returns The configured Ollama base URL.
+ * @throws Throws a 500 error if `NUXT_OLLAMA_BASE_URL` is not set.
+ */
+export function getOllamaBaseUrlFromConfig(config: OllamaRuntimeConfig): string {
+  const baseURL = config.ollamaBaseUrl
+
+  if (typeof baseURL === 'string' && baseURL.trim()) {
+    return baseURL.trim().replace(/\/+$/, '')
+  }
+
+  throw createError({ statusCode: 500, statusMessage: 'NUXT_OLLAMA_BASE_URL is not configured' })
+}
+
 /**
  * Returns the configured Ollama base URL.
  *
@@ -28,14 +58,7 @@ interface OllamaTagsResponse {
  * @throws Throws a 500 error if `NUXT_OLLAMA_BASE_URL` is not set.
  */
 export function getOllamaBaseUrl(event: H3Event): string {
-  const config = useRuntimeConfig(event)
-  const baseURL = config.ollamaBaseUrl
-
-  if (typeof baseURL === 'string' && baseURL.trim()) {
-    return baseURL.trim().replace(/\/+$/, '')
-  }
-
-  throw createError({ statusCode: 500, statusMessage: 'NUXT_OLLAMA_BASE_URL is not configured' })
+  return getOllamaBaseUrlFromConfig(useRuntimeConfig(event))
 }
 
 /**
@@ -56,6 +79,16 @@ export function useOllamaClient(event: H3Event) {
  */
 export function getOllamaOpenAIBaseUrl(event: H3Event): string {
   return `${getOllamaBaseUrl(event)}/v1`
+}
+
+/**
+ * Returns the OpenAI-compatible base URL exposed by Ollama from runtime config.
+ *
+ * @param config - Runtime configuration containing `ollamaBaseUrl`.
+ * @returns The `/v1` base URL for Ollama's OpenAI-compatible API.
+ */
+export function getOllamaOpenAIBaseUrlFromConfig(config: OllamaRuntimeConfig): string {
+  return `${getOllamaBaseUrlFromConfig(config)}/v1`
 }
 
 /**

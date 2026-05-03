@@ -1,8 +1,11 @@
 <!--
   default.vue - Default application layout
-  Provides the main layout structure with a collapsible/resizable sidebar
-  containing the chat list and a main content area. Handles chat fetching,
-  grouping, deletion, and navigation.
+  Provides the main layout structure with:
+  - A collapsible/resizable sidebar containing navigation links, a grouped chat list
+    with avatar colors, delete confirmation, and incremental chat loading.
+  - A main content area rendered as a glassmorphism card.
+  - Keyboard shortcuts for quick navigation.
+  - Lazy-loaded modals for settings and delete confirmation.
 -->
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -11,6 +14,7 @@ import { LazyModalConfirm, LazySettingsPersonalitiesModal } from '#components'
 const route = useRoute()
 const toast = useToast()
 const overlay = useOverlay()
+/** CSRF token utilities for securing mutating API requests */
 const { csrf, headerName } = useCsrf()
 
 /** Controls the sidebar open/close state on mobile */
@@ -21,7 +25,7 @@ const INITIAL_VISIBLE_CHATS = 40
 /** Number of older chats appended when the user requests more */
 const CHAT_LOAD_INCREMENT = 40
 
-/** Lazy-loaded confirmation modal for chat deletion */
+/** Lazy-loaded confirmation modal for chat deletion with pre-configured props */
 const deleteModal = overlay.create(LazyModalConfirm, {
   props: {
     title: 'Delete chat',
@@ -29,22 +33,22 @@ const deleteModal = overlay.create(LazyModalConfirm, {
   }
 })
 
-/** Lazy-loaded settings modal for custom personality management. */
-const personalitiesModal = overlay.create(LazySettingsPersonalitiesModal)
+/** Lazy-loaded settings modal for personalization and document processing */
+const settingsModal = overlay.create(LazySettingsPersonalitiesModal)
 
-/** Opens the personalization settings modal from the sidebar menu. */
-function openPersonalizationSettings() {
+/** Opens the settings modal and closes the mobile sidebar */
+function openSettings() {
   open.value = false
-  personalitiesModal.open()
+  settingsModal.open()
 }
 
-/** Sidebar settings menu items. */
+/** Sidebar settings dropdown menu items */
 const settingsItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'Personalization',
-      icon: 'i-lucide-sparkles',
-      onSelect: openPersonalizationSettings
+      label: 'Administration',
+      icon: 'i-lucide-shield-cog',
+      onSelect: openSettings
     }
   ]
 ]
@@ -344,8 +348,10 @@ defineShortcuts({
         </div>
       </template>
 
+      <!-- Settings section in the sidebar footer -->
       <template #footer="{ collapsed }">
         <div class="flex w-full flex-col gap-2 px-2">
+          <!-- Settings dropdown menu -->
           <UDropdownMenu
             :items="settingsItems"
             :content="{ side: 'top', align: 'start', sideOffset: 8 }"
@@ -364,7 +370,7 @@ defineShortcuts({
             />
           </UDropdownMenu>
 
-          <span v-if="!collapsed" class="text-xs text-dimmed"> v1.0.1 </span>
+          <span v-if="!collapsed" class="text-xs text-dimmed"> v1.0.2 </span>
         </div>
       </template>
     </UDashboardSidebar>

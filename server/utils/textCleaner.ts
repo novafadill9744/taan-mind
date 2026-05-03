@@ -60,8 +60,12 @@ const CHAR_REPLACEMENTS: [RegExp, string][] = [
 
 /**
  * Cleans special/invisible characters from text content.
- * Removes paragraph marks, zero-width characters, control characters,
- * normalizes spaces, quotes, and dashes.
+ *
+ * Iterates through an ordered list of regex replacements to remove paragraph marks,
+ * zero-width characters, control characters, and normalizes spaces, quotes, and dashes.
+ *
+ * @param text - The raw text to clean (typically OCR output).
+ * @returns The cleaned and trimmed text string.
  */
 export function cleanText(text: string): string {
   let result = text

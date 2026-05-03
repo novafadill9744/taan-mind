@@ -1,17 +1,15 @@
 import { eq, asc, or } from 'drizzle-orm'
 import { consola } from 'consola'
-import { createMinimax } from 'vercel-minimax-ai-provider'
 import { generateText } from 'ai'
 import type { PaperlessDocument } from '~~/shared/types/paperless'
+import type { ModelId } from '#shared/utils/models'
 import { cleanText } from '../utils/textCleaner'
+import type { LanguageModelRuntimeConfig } from '../utils/aiModels'
+import { resolveLanguageModelFromConfig } from '../utils/aiModels'
+import { getDocumentProcessingSettings } from '../utils/documentProcessingSettings'
 
-/** Configuration required for AI-powered document processing via MiniMax. */
-interface DocumentProcessorConfig {
-  /** MiniMax API key for content formatting and metadata extraction. */
-  minimaxApiKey: string
-  /** Optional custom base URL for the MiniMax API. */
-  minimaxBaseUrl?: string
-}
+/** Configuration required for AI-powered document enrichment models. */
+type DocumentProcessorConfig = LanguageModelRuntimeConfig
 
 /**
  * Finds an existing correspondent by name (case-insensitive) or creates a new one.
@@ -163,8 +161,8 @@ async function findOrCreateTags(
  * 2. Mark as in-progress (processed=2)
  * 3. Download file from Paperless
  * 4. Run OCR
- * 5. Format content with AI
- * 6. Extract metadata with AI
+ * 5. Format content with the selected enrichment model
+ * 6. Extract metadata with the selected enrichment model
  * 7. PATCH Paperless (only empty fields)
  * 8. Mark as done (processed=1)
  */
@@ -252,11 +250,13 @@ export default defineNitroPlugin(nitroApp => {
           .set({ ocrContent: cleanedOcrText, ocrMethod: ocrMethod, updatedAt: new Date() })
           .where(eq(schema.paperlessDocuments.id, doc.id))
 
-        // 6. Format content with AI
+        const { enrichmentModel } = await getDocumentProcessingSettings()
+
+        // 6. Format content with the selected enrichment model
         consola.info(
-          `[Document Processor] Doc #${doc.id} — Formatting content with MiniMax M2.7...`
+          `[Document Processor] Doc #${doc.id} — Formatting content with ${enrichmentModel}...`
         )
-        const aiContent = await formatWithAI(cleanedOcrText, doc.title, config)
+        const aiContent = await formatWithAI(cleanedOcrText, doc.title, enrichmentModel, config)
         consola.info(
           `[Document Processor] Doc #${doc.id} — Content formatted (${aiContent.length} characters)`
         )
@@ -270,11 +270,11 @@ export default defineNitroPlugin(nitroApp => {
           .set({ aiContent: cleanedAiContent, updatedAt: new Date() })
           .where(eq(schema.paperlessDocuments.id, doc.id))
 
-        // 8. Extract metadata with AI
+        // 8. Extract metadata with the selected enrichment model
         consola.info(
-          `[Document Processor] Doc #${doc.id} — Extracting metadata with MiniMax M2.7...`
+          `[Document Processor] Doc #${doc.id} — Extracting metadata with ${enrichmentModel}...`
         )
-        const metadata = await extractMetadata(cleanedAiContent, doc.title, config)
+        const metadata = await extractMetadata(cleanedAiContent, doc.title, enrichmentModel, config)
         consola.info(
           `[Document Processor] Doc #${doc.id} — Metadata extracted: ${JSON.stringify(metadata)}`
         )
@@ -413,7 +413,7 @@ export default defineNitroPlugin(nitroApp => {
 
             // Add a note documenting the AI processing
             try {
-              const noteText = `Document automatically processed by AI (MiniMax M2.7).\nUpdated fields: ${Object.keys(patchBody).join(', ')}`
+              const noteText = `Document automatically processed by AI (${enrichmentModel}).\nUpdated fields: ${Object.keys(patchBody).join(', ')}`
               await $fetch(`${baseUrl}/api/documents/${doc.id}/notes/`, {
                 method: 'POST',
                 headers: {
@@ -485,35 +485,25 @@ export default defineNitroPlugin(nitroApp => {
 })
 
 /**
- * Formats raw OCR text into clean, well-structured content using MiniMax M2.7.
+ * Formats raw OCR text into clean, well-structured content using the selected model.
  *
- * This is the plugin-local version that reads the API key directly from config
+ * This is the plugin-local version that reads provider credentials from config
  * instead of requiring an H3Event (which is unavailable inside the plugin interval).
  *
  * @param rawText - The raw OCR-extracted text to format.
  * @param documentTitle - The document title, injected into the system prompt for context.
- * @param config - Runtime configuration with MiniMax credentials.
+ * @param enrichmentModel - Model used for formatting and metadata enrichment.
+ * @param config - Runtime configuration with provider credentials.
  * @returns The cleaned and formatted text string.
  */
 async function formatWithAI(
   rawText: string,
   documentTitle: string,
+  enrichmentModel: ModelId,
   config: DocumentProcessorConfig
 ): Promise<string> {
-  if (!config.minimaxApiKey?.trim()) {
-    throw new Error('MINIMAX_API_KEY is not configured')
-  }
-  if (!config.minimaxBaseUrl?.trim()) {
-    throw new Error('MINIMAX_BASE_URL is not configured')
-  }
-
-  const minimax = createMinimax({
-    apiKey: config.minimaxApiKey.trim(),
-    baseURL: config.minimaxBaseUrl.trim()
-  })
-
   const { text } = await generateText({
-    model: minimax('MiniMax-M2.7'),
+    model: resolveLanguageModelFromConfig(enrichmentModel, config),
     system: `You are a document text formatter. Your task is to clean and format OCR-extracted text from a document titled "${documentTitle}".
 
 Instructions:
@@ -531,19 +521,21 @@ Instructions:
 
 /**
  * Extracts metadata (title, tags, correspondent, document type) from formatted
- * document content using MiniMax M2.7.
+ * document content using the selected model.
  *
- * This is the plugin-local version that reads the API key directly from config
+ * This is the plugin-local version that reads provider credentials from config
  * instead of requiring an H3Event (which is unavailable inside the plugin interval).
  *
  * @param formattedContent - The already-formatted document text.
  * @param existingTitle - The current document title for reference.
- * @param config - Runtime configuration with MiniMax credentials.
+ * @param enrichmentModel - Model used for formatting and metadata enrichment.
+ * @param config - Runtime configuration with provider credentials.
  * @returns Extracted metadata suggestions (all fields optional).
  */
 async function extractMetadata(
   formattedContent: string,
   existingTitle: string,
+  enrichmentModel: ModelId,
   config: DocumentProcessorConfig
 ): Promise<{
   suggestedTitle?: string
@@ -551,20 +543,8 @@ async function extractMetadata(
   suggestedCorrespondent?: string
   suggestedDocumentType?: string
 }> {
-  if (!config.minimaxApiKey?.trim()) {
-    throw new Error('MINIMAX_API_KEY is not configured')
-  }
-  if (!config.minimaxBaseUrl?.trim()) {
-    throw new Error('MINIMAX_BASE_URL is not configured')
-  }
-
-  const minimax = createMinimax({
-    apiKey: config.minimaxApiKey.trim(),
-    baseURL: config.minimaxBaseUrl.trim()
-  })
-
   const { text } = await generateText({
-    model: minimax('MiniMax-M2.7'),
+    model: resolveLanguageModelFromConfig(enrichmentModel, config),
     system: `You are a document metadata extractor. Analyze the provided document content and return a JSON object with the following fields:
 
 - "suggestedTitle": un título claro y descriptivo en español que resuma el contenido del documento (ej: "Factura #1234 - Empresa XYZ - Enero 2025")

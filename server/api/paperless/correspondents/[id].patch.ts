@@ -9,6 +9,7 @@ const bodySchema = z.object({
  * PATCH /api/paperless/correspondents/:id
  *
  * Updates an existing correspondent in Paperless-ngx.
+ * Only the `name` field can be modified via this endpoint.
  */
 export default defineEventHandler(async (event): Promise<PaperlessCorrespondent> => {
   const { id } = await getValidatedRouterParams(

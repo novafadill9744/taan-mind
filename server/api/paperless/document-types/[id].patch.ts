@@ -2,6 +2,7 @@ import type { PaperlessDocumentType } from '~~/shared/types/paperless'
 import { z } from 'zod'
 
 const bodySchema = z.object({
+  /** Updated document type name (optional for partial updates). */
   name: z.string().min(1).optional()
 })
 
@@ -9,6 +10,7 @@ const bodySchema = z.object({
  * PATCH /api/paperless/document-types/:id
  *
  * Updates an existing document type in Paperless-ngx.
+ * Only the `name` field can be modified via this endpoint.
  */
 export default defineEventHandler(async (event): Promise<PaperlessDocumentType> => {
   const { id } = await getValidatedRouterParams(

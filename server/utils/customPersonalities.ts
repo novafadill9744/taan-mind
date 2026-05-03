@@ -1,3 +1,9 @@
+/**
+ * @file Custom personality CRUD operations and validation.
+ *
+ * Manages user-defined AI personalities stored in SQLite, including
+ * serialization, quota enforcement, ownership validation, and prompt resolution.
+ */
 import type { CustomPersonality } from '#shared/utils/personalities'
 import { db, schema } from 'hub:db'
 import { and, asc, eq } from 'drizzle-orm'
