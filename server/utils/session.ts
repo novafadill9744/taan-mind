@@ -1,3 +1,9 @@
+/**
+ * @file Anonymous session management for chat persistence.
+ *
+ * Provides a cookie-based user identity that allows unauthenticated users
+ * to maintain persistent chat histories across browser sessions.
+ */
 import type { H3Event } from 'h3'
 
 /** Name of the cookie used to store the anonymous chat session ID. */

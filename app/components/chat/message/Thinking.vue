@@ -1,8 +1,10 @@
 <!--
   Thinking.vue - Collapsible thinking/reasoning block
-  Displays the AI's reasoning process in a collapsible section.
-  While streaming, it auto-expands and shows a timer.
-  Once complete, the user can toggle visibility and see the total thinking duration.
+  Displays the AI's internal reasoning process in a collapsible section:
+  - While streaming: auto-expands and shows a live timer counting elapsed seconds
+  - Once complete: collapses and shows total thinking duration (e.g., "Thought for 3 seconds")
+  - User can toggle visibility after streaming completes
+  - Smooth grid-based expand/collapse animation with a left-border accent on the text
 -->
 <script setup lang="ts">
 /** Props: the thinking text content and whether the message is still streaming */

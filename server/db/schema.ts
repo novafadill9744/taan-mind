@@ -1,3 +1,10 @@
+/**
+ * @file SQLite database schema definitions.
+ *
+ * Defines all tables (chats, messages, custom personalities, app settings,
+ * Paperless document cache), their relations, indexes, and shared column
+ * helpers using Drizzle ORM's SQLite adapter.
+ */
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 
@@ -88,6 +95,21 @@ export const customPersonalities = sqliteTable(
   },
   table => [index('custom_personalities_user_id_idx').on(table.userId)]
 )
+
+/**
+ * Application settings table — stores server-side configuration edited from the UI.
+ * Settings are global because background processors run outside a user request.
+ */
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date())
+})
 
 /**
  * Paperless documents table — caches document metadata from Paperless-ngx.

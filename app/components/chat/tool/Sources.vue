@@ -1,8 +1,11 @@
 <!--
   Sources.vue - Web search sources list
   Renders a scrollable list of source links from a web search tool result.
-  Each source shows its favicon, title, and domain name, linking to the
-  original URL in a new tab.
+  Each source displays:
+  - Favicon image (loaded lazily, hidden on error)
+  - Source title (truncated with CSS if too long)
+  - Domain name (shown on the right when a title is present)
+  Links open in a new tab with noopener/noreferrer for security.
 -->
 <script setup lang="ts">
 /** Props: array of source objects from the web search tool output */

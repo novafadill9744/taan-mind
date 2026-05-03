@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import { CONVERTIBLE_IMAGE_TYPES, TEXT_EXTRACTABLE_TYPES } from '~~/server/utils/ocr'
 
+/** MIME types that can be sent directly to the OCR engine as images. */
 const OCR_IMAGE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'])
 
+/** Combined set of all file types supported for OCR processing. */
 const SUPPORTED_TYPES = new Set([
   ...OCR_IMAGE_TYPES,
   ...CONVERTIBLE_IMAGE_TYPES,

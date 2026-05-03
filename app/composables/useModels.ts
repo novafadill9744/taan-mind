@@ -1,5 +1,5 @@
 import type { ModelId, ModelsResponse } from '#shared/utils/models'
-import { DEFAULT_MODEL, MODELS, isSupportedModel } from '#shared/utils/models'
+import { DEFAULT_MODEL, MODELS, isSelectableModel } from '#shared/utils/models'
 
 /**
  * Composable that manages the selected AI model.
@@ -25,8 +25,8 @@ export function useModels() {
 
   const selectedModel = computed(() => models.value.find(option => option.value === model.value))
 
-  // Reset immediately only when the cookie does not match any supported model ID shape.
-  if (!isSupportedModel(model.value as string)) {
+  // Reset immediately when the cookie is unsupported or points to an OCR-only model.
+  if (!isSelectableModel(model.value as string)) {
     model.value = DEFAULT_MODEL
   }
 

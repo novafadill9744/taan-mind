@@ -2,11 +2,13 @@
   documents/index.vue - Cached documents list page
   Displays a paginated, filterable table of Paperless documents from the local
   SQLite cache. Features include:
-  - Full-text search with debounced input
+  - Full-text search with debounced input (300ms)
   - Filtering by processing status (Pending / Processing / Processed) and MIME type
-  - Configurable page size and pagination
-  - Auto-refresh every 5 seconds
+  - Configurable page size and full pagination
+  - Auto-refresh every 5 seconds for live status updates
   - Per-document reprocess action to reset OCR/AI processing
+  - Per-document cache deletion with confirmation modal
+  - Document statistics overview with lazy-loaded charts
 -->
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
@@ -14,9 +16,12 @@ import { LazyModalConfirm } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import type { CacheDocument } from '~/composables/useCacheDocuments'
 
+/** Pre-resolved UBadge component for use in render functions */
 const UBadge = resolveComponent('UBadge')
+/** Pre-resolved UButton component for use in render functions */
 const UButton = resolveComponent('UButton')
 
+/** CSRF token utilities for securing mutating API requests */
 const { csrf, headerName } = useCsrf()
 const overlay = useOverlay()
 
@@ -545,6 +550,7 @@ const columns: TableColumn<CacheDocument>[] = [
 
         <!-- Documents data table -->
         <div v-if="showTableSkeleton" class="overflow-hidden rounded-xl ring-1 ring-default/50">
+          <!-- Skeleton rows shown during initial load -->
           <div
             v-for="row in tableSkeletonRows"
             :key="row"
@@ -561,6 +567,7 @@ const columns: TableColumn<CacheDocument>[] = [
           </div>
         </div>
 
+        <!-- Actual table rendered after initial data is loaded -->
         <div v-else class="min-w-0 overflow-x-auto">
           <UTable
             :data="data?.results || []"

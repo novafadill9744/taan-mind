@@ -1,16 +1,22 @@
 <!--
   [id].vue - Chat conversation page
   Displays an active chat conversation with full messaging capabilities including:
-  - Real-time streaming responses via AI SDK
+  - Real-time streaming responses via the AI SDK (Vercel AI SDK)
   - Message editing, regeneration, and error handling
-  - CSS-based message entrance animation
+  - CSS-based message entrance animation (respects prefers-reduced-motion)
   - Nuxt UI chat prompt with model and personality selectors
+  - Incremental message loading for long conversation histories
+  - Auto-send first message for newly created chats
 -->
 <script setup lang="ts">
 import { Chat } from '@ai-sdk/vue'
 import { DefaultChatTransport } from 'ai'
 import type { UIMessage } from 'ai'
 
+/**
+ * Shape of the chat page data returned by the API.
+ * Includes metadata, messages, and ownership information.
+ */
 type ChatPageData = {
   id: string
   title: string | null
@@ -24,34 +30,53 @@ type ChatPageData = {
 
 const route = useRoute()
 const toast = useToast()
+/** Reactive model reference shared via the useModels composable */
 const { model } = useModels()
+/** CSRF token utilities for securing mutating API requests */
 const { csrf, headerName } = useCsrf()
 
-/** Reactive chat ID from route params */
+/** Reactive chat ID extracted from the route params */
 const chatId = computed(() => route.params.id as string)
 
-/** Fetch chat data from the API — useFetch forwards cookies during SSR for private chats */
+/**
+ * Fetch chat data from the API.
+ * useFetch forwards cookies during SSR for private chats.
+ * Key is dynamic so it re-fetches when navigating between chats.
+ */
 const { data, status } = await useFetch<ChatPageData>(() => `/api/chats/${chatId.value}`, {
   key: () => `chat-${chatId.value}`
 })
 
-/** Whether the current user is the owner of this chat */
+/** Whether the current user is the owner of this chat (controls edit/delete UI) */
 const isOwner = computed(() => data.value?.isOwner ?? false)
 
 /** Reactive input field value for the message prompt */
 const input = ref('')
+
+/** Maximum number of messages rendered at once (increases with "show older" button) */
 const visibleMessageCount = ref(80)
 
-/** AI Chat instance, re-created when navigating between chats */
+/** AI Chat instance (shallowRef to avoid deep reactivity overhead on the SDK object) */
 const chat = shallowRef<InstanceType<typeof Chat> | null>(null)
 
+/**
+ * Initializes a new Chat SDK instance with the fetched data.
+ * Configures the transport layer, error handling, and auto-send
+ * behavior for newly created chats (single message, owner-only).
+ */
 function initChat() {
   if (!data.value) return
   visibleMessageCount.value = 80
 
+  // Auto-send first AI response for newly created chats
+  // Only on client-side, only if owner, and only when there's exactly 1 message
   const shouldAutoSend =
     import.meta.client && data.value.isOwner && data.value.messages.length === 1
 
+  /**
+   * The Chat instance from the AI SDK.
+   * Configured with the chat ID, initial messages, and transport settings.
+   */
   const instance = new Chat({
     id: data.value.id,
     messages: data.value.messages as unknown as UIMessage[],
@@ -64,11 +89,13 @@ function initChat() {
         }
       }
     }),
+    /** Listen for server-sent data parts (e.g., chat title updates) */
     onData: dataPart => {
       if (dataPart.type === 'data-chat-title') {
         refreshNuxtData('chats')
       }
     },
+    /** Handle streaming and API errors by showing a persistent toast notification */
     onError(error) {
       let message = error.message
       if (typeof message === 'string' && message[0] === '{') {
@@ -96,7 +123,7 @@ function initChat() {
   }
 }
 
-// Re-initialize chat whenever fetched data changes (new route = new data)
+// Re-initialize chat whenever fetched data changes (navigation between chats triggers new data)
 watch(
   data,
   val => {
@@ -106,7 +133,10 @@ watch(
   { immediate: true }
 )
 
-/** Latest message id is used to keep streaming message rendering reactive. */
+/**
+ * Latest message ID used to identify which message is actively streaming.
+ * This drives reactivity for the streaming message's rendering.
+ */
 const latestMessageId = computed(
   () => chat.value?.messages[chat.value.messages.length - 1]?.id ?? null
 )

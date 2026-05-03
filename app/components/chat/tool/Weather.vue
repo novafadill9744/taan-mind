@@ -1,8 +1,12 @@
 <!--
   Weather.vue - Weather tool visualization
   Renders a weather card based on the output of the AI's weather tool invocation.
-  Shows loading/error states while the tool is in progress, and displays
-  current temperature, conditions, humidity, wind speed, and a daily forecast.
+  Handles three states:
+  - Loading: shows a spinning loader with "Loading weather data..." message
+  - Error: shows a warning icon with error message
+  - Success: displays current temperature (°C), location, weather condition with icon,
+    humidity percentage, wind speed (km/h), and a multi-day forecast row
+  The success state uses a blue-to-indigo gradient background with dark mode variants.
 -->
 <script setup lang="ts">
 /** Props: the weather tool invocation containing state and output data */

@@ -1,31 +1,52 @@
+<!--
+  DocumentsStats.vue - Document statistics overview component
+  Displays the total number of cached documents and an expandable section
+  with breakdown charts (by status, month, MIME type, and document type).
+  Charts are lazy-loaded via IntersectionObserver to keep the initial
+  documents page render fast and lightweight.
+-->
 <script setup lang="ts">
+/**
+ * Fetch document statistics from the API.
+ * Returns total count and breakdowns by status, month, MIME type, and document type.
+ */
 const { data, status } = useDocumentStats()
 
-/** Root element observed to lazy-load the chart bundle when it nears the viewport. */
+/** Reference to the DOM element observed by IntersectionObserver for lazy-loading charts */
 const chartsRoot = ref<HTMLElement | null>(null)
-/** Keeps the dense chart area collapsed until the user needs the breakdowns. */
+/** Whether the breakdown charts section is currently expanded */
 const chartsExpanded = ref(false)
-/** Keeps chart dependencies out of the initial documents page render. */
+/** Whether the chart bundle has been triggered to load (set true when charts near the viewport) */
 const shouldLoadCharts = ref(false)
 
+/** Placeholder card titles shown while charts are loading */
 const chartSkeletonCards = ['By Status', 'By Month', 'By MIME Type', 'By Document Type']
 
+/** IntersectionObserver instance for lazy-loading the chart bundle */
 let observer: IntersectionObserver | null = null
 
+/** Disconnects the IntersectionObserver and cleans up the reference */
 function stopObservingCharts() {
   observer?.disconnect()
   observer = null
 }
 
+/** Marks charts as ready to load and stops the observer */
 function loadCharts() {
   shouldLoadCharts.value = true
   stopObservingCharts()
 }
 
+/** Toggles the expanded/collapsed state of the charts section */
 function toggleCharts() {
   chartsExpanded.value = !chartsExpanded.value
 }
 
+/**
+ * Sets up an IntersectionObserver on the given element to lazy-load charts
+ * when it comes within 200px of the viewport. Falls back to immediate loading
+ * if IntersectionObserver is not supported by the browser.
+ */
 function observeCharts(element: HTMLElement) {
   if (shouldLoadCharts.value || observer) return
 
@@ -46,6 +67,11 @@ function observeCharts(element: HTMLElement) {
   observer.observe(element)
 }
 
+/**
+ * Watch both the charts root element and expanded state.
+ * When expanded and the element exists, start observing for lazy-load.
+ * When collapsed, stop observing to free resources.
+ */
 watch(
   [chartsRoot, chartsExpanded],
   ([element, expanded]) => {
@@ -59,6 +85,7 @@ watch(
   { flush: 'post' }
 )
 
+/** Clean up the IntersectionObserver when the component is about to be destroyed */
 onBeforeUnmount(stopObservingCharts)
 </script>
 

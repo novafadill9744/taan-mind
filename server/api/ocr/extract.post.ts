@@ -20,20 +20,24 @@ const SUPPORTED_TYPES = new Set([
  * @returns The extracted text grouped by pages along with the method used.
  */
 export default defineEventHandler(async event => {
+  // Parse the multipart form data from the request
   const formData = await readMultipartFormData(event)
   if (!formData || formData.length === 0) {
     throw createError({ statusCode: 400, statusMessage: 'No file uploaded' })
   }
 
+  // Locate the file field in the form data
   const file = formData.find(part => part.name === 'file')
   if (!file || !file.data || !file.type) {
     throw createError({ statusCode: 400, statusMessage: 'Missing file field' })
   }
 
+  // Validate that the file's MIME type is supported
   if (!SUPPORTED_TYPES.has(file.type)) {
     throw createError({ statusCode: 400, statusMessage: `Unsupported file type: ${file.type}` })
   }
 
+  // Process the file buffer using the OCR pipeline
   const result = await ocrDocument(event, Buffer.from(file.data), file.type)
   return {
     filename: file.filename,

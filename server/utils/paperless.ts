@@ -1,3 +1,9 @@
+/**
+ * @file Paperless-ngx API client factory and query builder.
+ *
+ * Provides a pre-authenticated `$fetch` instance scoped to the Paperless API
+ * and a utility to sanitize query parameters before forwarding them upstream.
+ */
 import type { H3Event } from 'h3'
 
 /**

@@ -17,16 +17,25 @@ export default defineEventHandler(async event => {
   const body = await readValidatedBody(
     event,
     z.object({
+      /** Updated document title. */
       title: z.string().optional(),
+      /** Correspondent ID to assign, or `null` to clear. */
       correspondent: z.number().nullable().optional(),
+      /** Document type ID to assign, or `null` to clear. */
       document_type: z.number().nullable().optional(),
+      /** Storage path ID to assign, or `null` to clear. */
       storage_path: z.number().nullable().optional(),
+      /** Array of tag IDs to assign (replaces existing tags). */
       tags: z.array(z.number()).optional(),
+      /** Archive serial number to assign, or `null` to clear. */
       archive_serial_number: z.number().nullable().optional(),
+      /** Custom field values to set on the document. */
       custom_fields: z
         .array(
           z.object({
+            /** Custom field definition ID. */
             field: z.number(),
+            /** Field value (string, number, boolean, or null). */
             value: z.union([z.string(), z.number(), z.boolean(), z.null()])
           })
         )

@@ -1,9 +1,16 @@
 <!--
-  PersonalitiesModal.vue - Settings modal for custom AI personalities.
-  Lets the current anonymous user manage up to three markdown prompts.
+  PersonalitiesModal.vue - Settings modal for AI personalization and document processing
+  Provides a three-section interface:
+  1. Document processing: select the enrichment model used after OCR to format
+     content and suggest Paperless metadata.
+  2. Personality editor: create/edit custom AI personalities with markdown prompts
+     that become system prompt text. Enforces a maximum quota of custom personalities.
+  3. Personality list: table of existing custom personalities with edit/delete actions.
 -->
 <script setup lang="ts">
+import type { ModelId } from '#shared/utils/models'
 import type { CustomPersonality } from '#shared/utils/personalities'
+import { DEFAULT_DOCUMENT_PROCESSING_MODEL } from '#shared/utils/models'
 import {
   DEFAULT_PERSONALITY,
   MAX_CUSTOM_PERSONALITIES,
@@ -11,31 +18,68 @@ import {
   toCustomPersonalityValue
 } from '#shared/utils/personalities'
 
+/** Emits a close event when the user dismisses the modal */
 const emit = defineEmits<{ close: [] }>()
 
+/** Toast notification utility */
 const toast = useToast()
+
+/**
+ * Custom personalities composable: provides CRUD operations and
+ * reactive access to the user's custom personality definitions.
+ */
 const {
   customPersonalities,
   create,
   update,
   remove,
   refresh: refreshCustomPersonalities,
-  status
+  status: personalitiesStatus
 } = useCustomPersonalities()
+
+/** Currently selected personality (shared reactive state) */
 const { personality } = usePersonality()
 
-const editingId = shallowRef<string | null>(null)
-const label = shallowRef('')
-const prompt = shallowRef('')
-const saving = shallowRef(false)
-const deletingId = shallowRef<string | null>(null)
+/**
+ * Document processing settings composable: provides access to
+ * available processing models, current settings, and update functionality.
+ */
+const {
+  models: processingModels,
+  settings: processingSettings,
+  status: processingStatus,
+  modelsStatus: processingModelsStatus,
+  update: updateProcessingSettings
+} = useDocumentProcessingSettings()
 
+/** ID of the personality currently being edited (null when not editing) */
+const editingId = shallowRef<string | null>(null)
+/** Name/label input for the personality being created or edited */
+const label = shallowRef('')
+/** Markdown prompt text for the personality being created or edited */
+const prompt = shallowRef('')
+/** Whether a save/create operation is currently in progress */
+const saving = shallowRef(false)
+/** ID of the personality currently being deleted (null when idle) */
+const deletingId = shallowRef<string | null>(null)
+/** Currently selected document processing model */
+const processingModel = shallowRef<ModelId>(DEFAULT_DOCUMENT_PROCESSING_MODEL)
+/** Whether the processing model settings save operation is in progress */
+const savingProcessingSettings = shallowRef(false)
+
+/** Whether the form is in edit mode (as opposed to create mode) */
 const isEditing = computed(() => editingId.value !== null)
+/** Current count of user-created custom personalities */
 const customCount = computed(() => customPersonalities.value?.length ?? 0)
+/** Number of remaining personality slots available before hitting the quota */
 const remainingSlots = computed(() => Math.max(MAX_CUSTOM_PERSONALITIES - customCount.value, 0))
+/** Current character count of the prompt textarea */
 const promptLength = computed(() => prompt.value.length)
+/** Whether the prompt exceeds the maximum allowed character length */
 const promptTooLong = computed(() => promptLength.value > MAX_CUSTOM_PERSONALITY_PROMPT_LENGTH)
+/** Whether the create button is disabled because the personality quota is full */
 const createDisabledByQuota = computed(() => !isEditing.value && remainingSlots.value === 0)
+/** Whether the personality form can be submitted (all validations pass) */
 const canSave = computed(
   () =>
     !saving.value &&
@@ -44,33 +88,81 @@ const canSave = computed(
     prompt.value.trim().length > 0 &&
     !promptTooLong.value
 )
+/** The enrichment model currently saved on the server */
+const currentProcessingModel = computed(
+  () => processingSettings.value?.enrichmentModel ?? DEFAULT_DOCUMENT_PROCESSING_MODEL
+)
+/** Display info for the currently selected processing model option */
+const selectedProcessingModel = computed(() =>
+  processingModels.value.find(option => option.value === processingModel.value)
+)
+/** Whether the selected processing model exists in the available models list */
+const processingModelIsAvailable = computed(() =>
+  processingModels.value.some(option => option.value === processingModel.value)
+)
+/** Whether the processing model settings can be saved (model changed and available) */
+const canSaveProcessingSettings = computed(
+  () =>
+    !savingProcessingSettings.value &&
+    processingModelIsAvailable.value &&
+    processingModel.value !== currentProcessingModel.value
+)
 
+/**
+ * Sync the local processing model selection with the server-side setting.
+ * Runs immediately on mount and whenever the server value changes.
+ */
+watch(
+  currentProcessingModel,
+  value => {
+    processingModel.value = value
+  },
+  { immediate: true }
+)
+
+/**
+ * Extracts a human-readable error message from an API error response.
+ * Checks for structured error data first, then falls back to a generic message.
+ */
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as { data?: { statusMessage?: string; message?: string } }).data
-    return data?.statusMessage || data?.message || 'Could not save personality'
+    return data?.statusMessage || data?.message || 'Could not save settings'
   }
 
-  return 'Could not save personality'
+  return 'Could not save settings'
 }
 
+/** Resets the personality form to its default (create) state */
 function resetForm() {
   editingId.value = null
   label.value = ''
   prompt.value = ''
 }
 
+/**
+ * Populates the form with an existing personality's data for editing.
+ * @param item - The custom personality to edit
+ */
 function editPersonality(item: CustomPersonality) {
   editingId.value = item.id
   label.value = item.label
   prompt.value = item.prompt
 }
 
+/**
+ * Generates a truncated preview of a personality prompt for display in the table.
+ * Normalizes whitespace and caps at 96 characters with an ellipsis.
+ */
 function getPromptPreview(value: string): string {
   const normalized = value.replace(/\s+/g, ' ').trim()
   return normalized.length > 96 ? `${normalized.slice(0, 96)}…` : normalized
 }
 
+/**
+ * Creates a new personality or updates an existing one via the API.
+ * Shows a success toast on completion or an error toast on failure.
+ */
 async function savePersonality() {
   if (!canSave.value) return
 
@@ -109,6 +201,38 @@ async function savePersonality() {
   }
 }
 
+/**
+ * Saves the selected document processing model to the server.
+ * Shows a success toast on completion or an error toast on failure.
+ */
+async function saveProcessingSettings() {
+  if (!canSaveProcessingSettings.value) return
+
+  savingProcessingSettings.value = true
+  try {
+    await updateProcessingSettings({ enrichmentModel: processingModel.value })
+    toast.add({
+      title: 'Processing model updated',
+      description: 'New documents will use the selected model after OCR',
+      icon: 'i-lucide-check'
+    })
+  } catch (error) {
+    toast.add({
+      title: 'Error',
+      description: getErrorMessage(error),
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+  } finally {
+    savingProcessingSettings.value = false
+  }
+}
+
+/**
+ * Deletes a custom personality via the API.
+ * If the deleted personality is currently selected, resets to the default personality.
+ * If the deleted personality is being edited, resets the form.
+ */
 async function deletePersonality(item: CustomPersonality) {
   deletingId.value = item.id
   try {
@@ -141,8 +265,8 @@ async function deletePersonality(item: CustomPersonality) {
 
 <template>
   <UModal
-    title="Personalization"
-    description="Add up to 3 custom personalities in Markdown. Default personalities cannot be edited here."
+    title="Settings"
+    description="Configure chat personalization and the model used to enrich Paperless documents after OCR."
     :ui="{
       content: 'sm:max-w-3xl',
       footer: 'justify-between'
@@ -150,6 +274,59 @@ async function deletePersonality(item: CustomPersonality) {
   >
     <template #body>
       <div class="space-y-6">
+        <section class="rounded-2xl border border-default bg-elevated/40 p-4">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-highlighted">Document processing</h3>
+              <p class="mt-1 text-xs text-muted">
+                Choose the model used after OCR to format content and suggest Paperless metadata.
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft">
+              {{ selectedProcessingModel?.label ?? currentProcessingModel }}
+            </UBadge>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <UFormField
+              label="Enrichment model"
+              description="Applies to new background processing runs. OCR model selection is unchanged."
+              class="w-full"
+            >
+              <USelectMenu
+                v-model="processingModel"
+                :items="processingModels"
+                value-key="value"
+                icon="i-lucide-brain-circuit"
+                :disabled="
+                  savingProcessingSettings ||
+                  processingStatus === 'pending' ||
+                  processingModelsStatus === 'pending'
+                "
+                class="w-full"
+              />
+            </UFormField>
+
+            <UButton
+              label="Save model"
+              icon="i-lucide-save"
+              :loading="savingProcessingSettings"
+              :disabled="!canSaveProcessingSettings"
+              @click="saveProcessingSettings"
+            />
+          </div>
+
+          <UAlert
+            v-if="!processingModelIsAvailable"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-circle-alert"
+            title="Model unavailable"
+            description="Pick one of the currently available models before saving."
+            class="mt-4"
+          />
+        </section>
+
         <section class="rounded-2xl border border-default bg-elevated/40 p-4">
           <div class="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -242,7 +419,7 @@ async function deletePersonality(item: CustomPersonality) {
               variant="ghost"
               size="xs"
               icon="i-lucide-refresh-cw"
-              :loading="status === 'pending'"
+              :loading="personalitiesStatus === 'pending'"
               @click="refreshCustomPersonalities()"
             />
           </div>
@@ -299,7 +476,7 @@ async function deletePersonality(item: CustomPersonality) {
     </template>
 
     <template #footer>
-      <p class="text-xs text-muted">{{ remainingSlots }} slots available.</p>
+      <p class="text-xs text-muted">{{ remainingSlots }} personality slots available.</p>
       <UButton color="neutral" variant="ghost" label="Close" @click="emit('close')" />
     </template>
   </UModal>

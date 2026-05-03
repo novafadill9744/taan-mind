@@ -1,24 +1,39 @@
 <!--
-  index.vue - Home / new chat page
-  Landing page with a greeting, message input form, and quick action cards.
-  Handles new chat creation via API and navigates the user to the new chat.
+  index.vue - Home / new chat landing page
+  Serves as the entry point for creating new conversations. Includes:
+  - Dynamic greeting based on time of day
+  - Auto-resizing message textarea with Enter-to-send
+  - Model, personality, and document context selectors
+  - Quick action cards for common use cases (summarize, draft, explain, plan)
+  - Staggered CSS entrance animations respecting prefers-reduced-motion
+  - Chat creation via API with UUID generation and error handling
 -->
 <script setup lang="ts">
+/** Current input text for the new chat message */
 const input = ref('')
+/** Whether a chat creation request is currently in progress */
 const loading = ref(false)
+/** Selected document ID for document-context chats (null = no document) */
 const selectedDocId = ref<number | null>(null)
+/** Template ref to the textarea element for auto-resize logic */
 const textarea = ref<HTMLTextAreaElement | null>(null)
 const toast = useToast()
+/** CSRF token utilities for securing mutating API requests */
 const { csrf, headerName } = useCsrf()
+/** Currently selected personality (shared reactive state) */
 const { personality } = usePersonality()
 
-/** Dynamic greeting based on the current time of day */
+/**
+ * Returns a greeting string based on the current hour:
+ * 'Good morning' (before 12), 'Good afternoon' (12–17), or 'Good evening' (18+).
+ */
 function getGreeting() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
   return 'Good evening'
 }
+/** Displayed greeting text, defaults to 'Hello' until mounted (SSR-safe) */
 const greeting = ref('Hello')
 
 onMounted(() => {
@@ -26,7 +41,10 @@ onMounted(() => {
   resizeTextarea()
 })
 
-/** Keeps the prompt textarea compact for short prompts and grows for longer text. */
+/**
+ * Auto-resize the textarea to fit its content.
+ * Caps at 220px height to prevent it from growing too tall.
+ */
 function resizeTextarea() {
   const element = textarea.value
   if (!element) return
@@ -35,11 +53,12 @@ function resizeTextarea() {
   element.style.height = `${Math.min(element.scrollHeight, 220)}px`
 }
 
+/** Re-adjust textarea height whenever the input text changes */
 watch(input, () => {
   nextTick(resizeTextarea)
 })
 
-/** Predefined quick action prompts for common use cases */
+/** Predefined quick action prompts displayed as clickable cards below the input */
 const quickChats = [
   {
     label: 'Summarize a document',
@@ -128,7 +147,7 @@ async function onSubmit(event?: Event) {
 
     <template #body>
       <div class="relative flex-1 flex flex-col justify-center">
-        <!-- Subtle background gradient blobs for visual depth -->
+        <!-- Decorative background gradient blobs (non-interactive) -->
         <div class="pointer-events-none absolute inset-0 overflow-hidden">
           <div
             class="absolute -top-40 -right-40 size-80 rounded-full bg-linear-to-br from-primary/5 to-transparent blur-3xl"
@@ -139,7 +158,7 @@ async function onSubmit(event?: Event) {
         </div>
 
         <UContainer class="relative flex flex-col justify-center gap-6 sm:gap-8 py-12">
-          <!-- Dynamic greeting heading with gradient text -->
+          <!-- Greeting section with gradient text (ClientOnly prevents hydration mismatch) -->
           <div class="space-y-2">
             <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
               <span
@@ -154,7 +173,7 @@ async function onSubmit(event?: Event) {
             <p class="text-lg text-muted max-w-md">How can I help you today?</p>
           </div>
 
-          <!-- Message input form with glassmorphism styling -->
+          <!-- Message input form with glassmorphism styling and view-transition support -->
           <form
             class="[view-transition-name:chat-prompt] relative flex flex-col items-stretch gap-3 px-4 py-3.5 w-full rounded-2xl backdrop-blur-xl bg-neutral-200/60 dark:bg-neutral-800/60 ring-1 ring-default/50 shadow-xl"
             @submit.prevent="onSubmit"
@@ -204,7 +223,7 @@ async function onSubmit(event?: Event) {
             </div>
           </form>
 
-          <!-- Quick action cards grid -->
+          <!-- Quick action cards grid with staggered entrance animation -->
           <div class="quick-actions grid grid-cols-2 gap-2">
             <button
               v-for="(quickChat, index) in quickChats"

@@ -1,11 +1,14 @@
 <!--
   Navbar.vue - Top navigation bar
-  Renders a fixed dashboard navbar with a sidebar collapse toggle on the left
-  and action buttons (color mode, new chat) on the right. Accepts slot content
-  for additional right-side controls.
+  Renders a fixed dashboard navbar with:
+  - Left section: sidebar collapse toggle button (for resizable sidebar)
+  - Right section: slot for extra controls (e.g., model/personality selectors),
+    color mode toggle (light/dark), and a new chat shortcut button (mobile only)
+  The navbar uses absolute positioning with backdrop blur and carefully
+  managed pointer events to allow interaction with the content behind it.
 -->
 <template>
-  <!-- Absolute-positioned navbar with backdrop blur and pointer event management -->
+  <!-- Absolute-positioned navbar with backdrop blur and pointer event passthrough -->
   <UDashboardNavbar
     class="absolute top-0 inset-x-0 border-b-0 z-10 backdrop-blur lg:backdrop-blur-none pointer-events-none sm:px-4"
     :ui="{ left: 'pointer-events-auto', right: 'pointer-events-auto' }"

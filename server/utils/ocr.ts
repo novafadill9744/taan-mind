@@ -1,3 +1,13 @@
+/**
+ * @file OCR processing pipeline for document text extraction.
+ *
+ * Provides a multi-strategy OCR pipeline that selects the appropriate extraction
+ * method based on file MIME type:
+ * - **Text-extractable** (Office, TXT, CSV, EML): Direct text extraction via parsers.
+ * - **PDF**: Page-by-page image conversion followed by Ollama OCR.
+ * - **Convertible images** (TIFF, GIF, BMP): PNG conversion then OCR.
+ * - **Direct images** (PNG, JPEG, WebP): Direct Ollama OCR.
+ */
 import type { H3Event } from 'h3'
 import sharp from 'sharp'
 import { parseOffice } from 'officeparser'

@@ -1,21 +1,25 @@
 <!--
   DocumentsStatsCharts.vue - Document statistics charts bundle
-  Renders a 2x2 grid of charts visualizing document breakdowns:
-  - Donut chart by processing status (Pending / Processing / Processed)
-  - Area chart by month (timeline of document counts)
-  - Horizontal bar chart by MIME type
-  - Vertical bar chart by document type
-  Loaded lazily via IntersectionObserver to keep the initial page load fast.
+  Renders a responsive 2x2 grid of charts visualizing document breakdowns:
+  1. Donut chart: by processing status (Pending / Processing / Processed) with color coding
+  2. Area chart: by month (timeline of document counts over time)
+  3. Horizontal bar chart: by MIME type (distribution of file formats)
+  4. Vertical bar chart: by document type (distribution of document categories)
+  Loaded lazily via IntersectionObserver in the parent component to keep
+  the initial documents page load fast. Each chart shows an empty state
+  when no data is available for its category.
 -->
 <script setup lang="ts">
-/** Orientation enum for configuring bar chart direction */
+/** Orientation enum for configuring horizontal bar chart direction */
 import { Orientation } from '@unovis/ts'
 
+/** Single statistics item with a label and numeric value */
 interface StatItem {
   label: string
   value: number
 }
 
+/** Complete document statistics structure with multiple breakdown dimensions */
 interface DocumentStats {
   total: number
   byStatus: StatItem[]
