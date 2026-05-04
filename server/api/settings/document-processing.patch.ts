@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import type { DocumentProcessingSettings, ModelId } from '#shared/utils/models'
-import { isSelectableModel } from '#shared/utils/models'
+import { isDocumentProcessingModel } from '#shared/utils/models'
 import { setDocumentProcessingEnrichmentModel } from '../../utils/documentProcessingSettings'
 import { assertLanguageModelAvailable } from '../../utils/aiModels'
 
 const documentProcessingSettingsBodySchema = z.object({
   /** Model identifier in `provider/modelId` format used for document enrichment. */
-  enrichmentModel: z.string().refine(isSelectableModel, {
+  enrichmentModel: z.string().refine(isDocumentProcessingModel, {
     message: 'Unsupported enrichment model'
   })
 })

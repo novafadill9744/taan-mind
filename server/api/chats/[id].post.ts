@@ -12,7 +12,11 @@ import { db, schema } from 'hub:db'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { isSupportedModel } from '#shared/utils/models'
-import { assertLanguageModelAvailable, resolveLanguageModel } from '../../utils/aiModels'
+import {
+  assertLanguageModelAvailable,
+  getLanguageModelProviderOptions,
+  resolveLanguageModel
+} from '../../utils/aiModels'
 
 defineRouteMeta({
   openAPI: {
@@ -132,6 +136,7 @@ ${doc.aiContent || doc.ocrContent || 'No content available'}
       const result = streamText({
         abortSignal: abortController.signal,
         model: resolveLanguageModel(model, event),
+        providerOptions: getLanguageModelProviderOptions(model),
         system: `${documentContext}${personalityPrompt}
 
 **CONTENT POLICY (MANDATORY):**

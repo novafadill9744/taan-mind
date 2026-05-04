@@ -1,20 +1,27 @@
 import type { H3Event } from 'h3'
 import type { ModelId, ModelOption, ModelsResponse } from '#shared/utils/models'
-import { MODELS, isSelectableOllamaModelName } from '#shared/utils/models'
+import {
+  DOCUMENT_PROCESSING_MODELS,
+  MODELS,
+  isSelectableOllamaModelName
+} from '#shared/utils/models'
 import { listOllamaModels } from '../utils/ollama'
 
 /**
  * GET /api/models
  *
- * Lists selectable chat/enrichment models. Static providers are always returned.
+ * Lists selectable models. Chat scope includes all chat models, while
+ * document-processing scope excludes chat-only providers such as Nova.
  * Ollama models are appended only when the configured Ollama instance is
  * reachable. OCR-only Ollama models are intentionally excluded from this list.
  */
 export default defineEventHandler(async (event): Promise<ModelsResponse> => {
+  const scope = getQuery(event).scope === 'document-processing' ? 'document-processing' : 'chat'
+  const staticModels = scope === 'document-processing' ? DOCUMENT_PROCESSING_MODELS : MODELS
   const ollamaModels = await getAvailableOllamaModelOptions(event)
 
   return {
-    models: [...MODELS, ...ollamaModels]
+    models: [...staticModels, ...ollamaModels]
   }
 })
 

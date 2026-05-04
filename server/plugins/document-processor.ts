@@ -448,7 +448,12 @@ export default defineNitroPlugin(nitroApp => {
         // 12. Mark as done
         await db
           .update(schema.paperlessDocuments)
-          .set({ processed: 1, processingCompletedAt: new Date(), updatedAt: new Date() })
+          .set({
+            processed: 1,
+            processingModel: enrichmentModel,
+            processingCompletedAt: new Date(),
+            updatedAt: new Date()
+          })
           .where(eq(schema.paperlessDocuments.id, doc.id))
 
         consola.success(`[Document Processor] Doc #${doc.id} processed successfully`)
