@@ -11,7 +11,7 @@ import type { DocumentProcessingSettings, ModelId } from '#shared/utils/models'
 import {
   DEFAULT_DOCUMENT_PROCESSING_MODEL,
   DOCUMENT_PROCESSING_MODEL_SETTING_KEY,
-  isSelectableModel
+  isDocumentProcessingModel
 } from '#shared/utils/models'
 
 /**
@@ -29,7 +29,7 @@ export async function getDocumentProcessingSettings(): Promise<DocumentProcessin
 
   const enrichmentModel = setting?.value
 
-  if (enrichmentModel && isSelectableModel(enrichmentModel)) {
+  if (enrichmentModel && isDocumentProcessingModel(enrichmentModel)) {
     return { enrichmentModel }
   }
 

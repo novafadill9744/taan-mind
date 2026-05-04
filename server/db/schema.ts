@@ -129,6 +129,7 @@ export const paperlessDocuments = sqliteTable(
     ocrContent: text('ocr_content'),
     aiContent: text('ai_content'),
     ocrMethod: text('ocr_method'),
+    processingModel: text('processing_model'),
     processed: integer('processed').notNull().default(0),
     processingStartedAt: integer('processing_started_at', { mode: 'timestamp' }),
     processingCompletedAt: integer('processing_completed_at', { mode: 'timestamp' }),

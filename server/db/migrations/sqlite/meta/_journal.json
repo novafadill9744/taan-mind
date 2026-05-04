@@ -64,6 +64,13 @@
       "when": 1777821710690,
       "tag": "0008_quiet_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1777849848571,
+      "tag": "0009_nappy_firelord",
+      "breakpoints": true
     }
   ]
 }

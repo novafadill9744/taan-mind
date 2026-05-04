@@ -10,7 +10,12 @@ import type { H3Event } from 'h3'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createMinimax } from 'vercel-minimax-ai-provider'
 import type { ModelProvider } from '#shared/utils/models'
-import { isSelectableModel, isStaticModel, isSupportedModel } from '#shared/utils/models'
+import {
+  isNovaReasoningModel,
+  isSelectableModel,
+  isStaticModel,
+  isSupportedModel
+} from '#shared/utils/models'
 import {
   getOllamaOpenAIBaseUrlFromConfig,
   hasOllamaModel,
@@ -19,8 +24,12 @@ import {
 
 /** Supported AI model provider names. */
 type ProviderName = ModelProvider
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+type LanguageModelProviderOptions = Record<string, { [key: string]: JsonValue | undefined }>
 
-const SUPPORTED_PROVIDERS: ProviderName[] = ['minimax', 'glm', 'ollama']
+const SUPPORTED_PROVIDERS: ProviderName[] = ['minimax', 'glm', 'nova', 'ollama']
+
+const DEFAULT_NOVA_BASE_URL = 'https://api.nova.amazon.com/v1'
 
 /** Runtime config subset required to resolve supported language models. */
 export interface LanguageModelRuntimeConfig extends OllamaRuntimeConfig {
@@ -32,6 +41,10 @@ export interface LanguageModelRuntimeConfig extends OllamaRuntimeConfig {
   glmApiKey?: unknown
   /** GLM OpenAI-compatible base URL. */
   glmBaseUrl?: unknown
+  /** Nova API key. */
+  novaApiKey?: unknown
+  /** Nova OpenAI-compatible base URL. */
+  novaBaseUrl?: unknown
 }
 
 /**
@@ -74,6 +87,14 @@ function requireRuntimeSecret(value: unknown, name: string): string {
     statusCode: 500,
     statusMessage: `${name} is not configured`
   })
+}
+
+function getRuntimeString(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim()
+  }
+
+  return undefined
 }
 
 /**
@@ -135,6 +156,24 @@ export function resolveLanguageModelFromConfig(model: string, config: LanguageMo
     return glm(modelId)
   }
 
+  // Configure Nova (OpenAI-compatible) provider
+  if (provider === 'nova') {
+    const nova = createOpenAICompatible({
+      name: 'nova',
+      apiKey: requireRuntimeSecret(
+        getRuntimeString(config.novaApiKey) ?? process.env.NOVA_API_KEY,
+        'Nova API key'
+      ),
+      baseURL: (
+        getRuntimeString(config.novaBaseUrl) ??
+        process.env.NOVA_BASE_URL ??
+        DEFAULT_NOVA_BASE_URL
+      ).replace(/\/+$/, '')
+    })
+
+    return nova(modelId)
+  }
+
   // Configure Ollama (OpenAI-compatible) provider
   const ollama = createOpenAICompatible({
     name: 'ollama',
@@ -143,6 +182,30 @@ export function resolveLanguageModelFromConfig(model: string, config: LanguageMo
   })
 
   return ollama(modelId)
+}
+
+/**
+ * Returns provider-specific options for chat generation.
+ *
+ * Nova exposes OpenAI-compatible extended reasoning through `reasoning_effort`,
+ * but only reasoning-capable Nova models accept that field. The AI SDK
+ * OpenAI-compatible adapter maps `reasoningEffort` to `reasoning_effort`.
+ *
+ * @param model - The full model identifier.
+ * @returns Provider options to pass into AI SDK generation calls.
+ */
+export function getLanguageModelProviderOptions(
+  model: string
+): LanguageModelProviderOptions | undefined {
+  if (isNovaReasoningModel(model)) {
+    return {
+      nova: {
+        reasoningEffort: 'high'
+      }
+    }
+  }
+
+  return undefined
 }
 
 /**

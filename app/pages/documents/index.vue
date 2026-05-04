@@ -9,17 +9,22 @@
   - Per-document reprocess action to reset OCR/AI processing
   - Per-document cache deletion with confirmation modal
   - Document statistics overview with lazy-loaded charts
+  - Post-OCR enrichment model visibility
 -->
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import { LazyModalConfirm } from '#components'
 import type { TableColumn } from '@nuxt/ui'
+import { MODELS } from '#shared/utils/models'
 import type { CacheDocument } from '~/composables/useCacheDocuments'
 
 /** Pre-resolved UBadge component for use in render functions */
 const UBadge = resolveComponent('UBadge')
 /** Pre-resolved UButton component for use in render functions */
 const UButton = resolveComponent('UButton')
+
+/** Static model labels keyed by persisted model identifier. */
+const modelLabels = new Map(MODELS.map(model => [model.value, model.label]))
 
 /** CSRF token utilities for securing mutating API requests */
 const { csrf, headerName } = useCsrf()
@@ -312,6 +317,19 @@ function formatDate(dateStr: string | null): string {
   })
 }
 
+function formatProcessingModel(model: CacheDocument['processingModel']): string {
+  if (!model) return '—'
+
+  const staticLabel = modelLabels.get(model)
+  if (staticLabel) return staticLabel
+
+  if (model.startsWith('ollama/')) {
+    return `Ollama: ${model.slice('ollama/'.length)}`
+  }
+
+  return model
+}
+
 /** Table column definitions for the documents data table */
 const columns: TableColumn<CacheDocument>[] = [
   {
@@ -403,6 +421,30 @@ const columns: TableColumn<CacheDocument>[] = [
           size: 'sm'
         },
         () => label
+      )
+    }
+  },
+  {
+    accessorKey: 'processingModel',
+    header: 'Model',
+    enableSorting: true,
+    meta: {
+      class: {
+        th: 'hidden lg:table-cell w-44',
+        td: 'hidden lg:table-cell w-44'
+      }
+    },
+    cell: ({ row }) => {
+      const model = row.getValue('processingModel') as CacheDocument['processingModel']
+      const label = formatProcessingModel(model)
+
+      return h(
+        'span',
+        {
+          class: 'block truncate text-sm text-muted',
+          title: model || label
+        },
+        label
       )
     }
   },

@@ -4,16 +4,17 @@
 </p>
 
 <p align="center">
-  A privacy-focused AI chat interface with Paperless-ngx document management, automatic OCR processing, and a KPI dashboard — built with Nuxt 4.
+  A privacy-focused AI workspace for chat, automatic OCR, document workflows, and KPI dashboards — built with Nuxt 4.
 </p>
 
 <p align="center">
-  Taan Mind is an AI-powered companion for <a href="https://github.com/paperless-ngx/paperless-ngx">Paperless-ngx</a> that adds automatic OCR workflows, AI metadata extraction, document-aware chat, and smart document operations using OpenAI-compatible APIs and Ollama.
+  Based on the <a href="https://github.com/nuxt-ui-templates/chat">Nuxt UI Chat Template</a> and adapted into an AI-powered companion for <a href="https://github.com/paperless-ngx/paperless-ngx">Paperless-ngx</a> with document sync, OCR, metadata enrichment, and document-aware chat.
 </p>
 
 <p align="center">
   <img alt="Nuxt 4.4.2" src="https://img.shields.io/badge/Nuxt-4.4.2-00DC82?style=for-the-badge&logo=nuxt&logoColor=white">
   <img alt="Nuxt UI 4.6.1" src="https://img.shields.io/badge/Nuxt%20UI-4.6.1-00DC82?style=for-the-badge&logo=nuxt&logoColor=white">
+  <a href="https://ui.nuxt.com"><img alt="Made with Nuxt UI" src="https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?style=for-the-badge&logo=nuxt&logoColor=white&labelColor=111827"></a>
   <img alt="AI SDK 6.0.158" src="https://img.shields.io/badge/AI%20SDK-6.0.158-000000?style=for-the-badge&logo=vercel&logoColor=white">
   <img alt="Drizzle ORM 0.45.2" src="https://img.shields.io/badge/Drizzle%20ORM-0.45.2-C5F74F?style=for-the-badge&logo=drizzle&logoColor=000000">
   <img alt="Tailwind CSS 4.2.2" src="https://img.shields.io/badge/Tailwind%20CSS-4.2.2-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
@@ -25,12 +26,12 @@
 
 ## Features
 
-- **AI Chat** — Streaming conversations with multiple AI providers (MiniMax, GLM, and available Ollama models) and personality presets
-- **Paperless-ngx Integration** — Full document management proxy with CRUD, search, and binary download
+- **AI Chat** — Streaming conversations with multiple AI providers (MiniMax, GLM, Nova, and available Ollama models) and personality presets
+- **[Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) Integration** — Full document management proxy with CRUD, search, and binary download
 - **Automatic OCR** — Background document processing pipeline using Ollama + MuPDF
 - **AI Metadata Extraction** — Auto-suggest titles, tags, correspondents, and document types
 - **KPI Dashboard** — Document statistics with interactive charts (status, timeline, MIME type, document type)
-- **Document Context** — Inject Paperless document content (OCR/AI-processed) as context into chats
+- **Document Context** — Inject [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) document content (OCR/AI-processed) as context into chats
 - **AI Tools** — Chart generation, weather forecasts, and web search sources
 - **Anonymous Sessions** — No login required, HTTP-only session cookies with local SQLite storage
 - **Docker Ready** — Multi-stage Dockerfile with hardened runtime and integrated Paperless-ngx stack via Docker Compose
@@ -48,6 +49,98 @@
 | [MuPDF](https://mupdf.com/)                          | PDF/image processing               |
 | [Comark](https://comark.ca/)                         | Markdown rendering                 |
 | [nuxt-charts](https://github.com/nuxt-modules/chart) | Chart.js visualizations            |
+
+## Architecture Overview
+
+The application combines a Nuxt user interface, Nitro API routes, background workers, Paperless-ngx, local SQLite storage, and AI providers. The diagram below shows the main runtime flow from the user to document storage, OCR, enrichment, and synchronization.
+
+```mermaid
+flowchart LR
+  internet["User / Internet"]
+
+  subgraph client["Client"]
+    browser["Browser"]
+    nuxtApp["Nuxt UI\npages, components, composables"]
+  end
+
+  subgraph app["Taan Mind App"]
+    api["Nitro API Layer"]
+    chatApi["Chat API\n/api/chats/*"]
+    paperlessProxy["Paperless Proxy\n/api/paperless/*"]
+    cacheApi["Cache and KPI APIs\n/api/cache, /api/kpi"]
+    ocrApi["OCR API\n/api/ocr/*"]
+    settingsApi["Settings API\n/api/settings/*"]
+    modelRegistry["Model Registry\nshared/utils/models.ts"]
+    syncWorker["Paperless Sync Plugin\nperiodic import"]
+    processor["Document Processor Plugin\nOCR → cleanup → AI enrichment → Paperless patch"]
+    appDb["SQLite / NuxtHub DB\nchats, messages, document cache, settings"]
+  end
+
+  subgraph ai["AI and OCR Models"]
+    externalModels["External AI Providers\nMiniMax, GLM, Nova"]
+    ollamaChat["Ollama Chat Models\nnon-OCR models"]
+    ollamaOcr["Ollama OCR Models\nglm-ocr, OCR-GLM"]
+    mupdf["MuPDF\nPDF/image page extraction"]
+  end
+
+  subgraph paperless["Paperless-ngx Stack"]
+    paperlessApi["Paperless-ngx API"]
+    paperlessDb["PostgreSQL\nPaperless metadata"]
+    redis["Redis\nbackground task broker"]
+    tika["Tika\ntext extraction"]
+    gotenberg["Gotenberg\nPDF rendering"]
+    media["Document Media\noriginal files, previews, thumbnails"]
+  end
+
+  internet --> browser --> nuxtApp --> api
+
+  api --> chatApi
+  api --> paperlessProxy
+  api --> cacheApi
+  api --> ocrApi
+  api --> settingsApi
+
+  chatApi --> modelRegistry
+  chatApi --> externalModels
+  chatApi --> ollamaChat
+  chatApi --> appDb
+
+  settingsApi --> modelRegistry
+  settingsApi --> appDb
+
+  cacheApi --> appDb
+  paperlessProxy --> paperlessApi
+
+  ocrApi --> mupdf
+  ocrApi --> ollamaOcr
+
+  syncWorker --> paperlessApi
+  syncWorker --> appDb
+
+  processor --> appDb
+  processor --> ocrApi
+  processor --> modelRegistry
+  processor --> externalModels
+  processor --> ollamaChat
+  processor --> paperlessApi
+
+  paperlessApi --> paperlessDb
+  paperlessApi --> redis
+  paperlessApi --> tika
+  paperlessApi --> gotenberg
+  paperlessApi --> media
+```
+
+At a high level:
+
+- Users interact with the Nuxt client, which calls Nitro API routes.
+- Chat requests use the shared model registry and can call MiniMax, GLM, Nova, or selectable non-OCR Ollama models.
+- OCR requests use MuPDF and OCR-specific Ollama models to extract document text.
+- The Paperless proxy keeps Paperless operations behind the app API.
+- The sync worker imports Paperless document metadata into the app database.
+- The document processor reads cached documents, runs OCR, enriches the result with the selected AI model, and patches missing metadata back into Paperless.
+- SQLite stores app-owned data such as anonymous chats, cached document content, processing status, and settings.
+- Paperless keeps its own metadata, task queue, rendering services, and media files inside the Paperless-ngx stack.
 
 ## Screenshots
 
@@ -69,6 +162,7 @@
 <p align="center">
   <a href="images/10.png"><img src="images/10.png" width="32%"></a>
   <a href="images/11.png"><img src="images/11.png" width="32%"></a>
+  <a href="images/12.png"><img src="images/12.png" width="32%"></a>
 </p>
 
 ## Getting Started
@@ -127,6 +221,8 @@ The app runs on `http://localhost:3000` and Paperless-ngx on `http://localhost:8
 | `MINIMAX_BASE_URL`             | No       | MiniMax API endpoint                                              |
 | `GLM_API_KEY`                  | Yes      | Z.AI GLM API key                                                  |
 | `GLM_BASE_URL`                 | No       | Z.AI API endpoint                                                 |
+| `NOVA_API_KEY`                 | Yes      | Amazon Nova API key                                               |
+| `NOVA_BASE_URL`                | No       | Amazon Nova API endpoint                                          |
 | `NUXT_PAPERLESS_BASE_URL`      | Yes      | Paperless-ngx instance URL                                        |
 | `NUXT_PAPERLESS_API_TOKEN`     | Yes      | Paperless-ngx API token                                           |
 | `PAPERLESS_BOOTSTRAP_USER`     | No       | Admin user created by Docker Compose (`paperless`)                |
@@ -241,10 +337,16 @@ paperless-ui-chat/
 | GLM      | `glm/glm-5`            | GLM 5                                                |
 | GLM      | `glm/glm-5.1`          | GLM 5.1                                              |
 | GLM      | `glm/glm-5-turbo`      | GLM 5 Turbo                                          |
+| Nova     | `nova/nova-2-lite-v1`  | Amazon Nova 2 Lite                                   |
+| Nova     | `nova/nova-micro-v1`   | Amazon Nova Micro                                    |
+| Nova     | `nova/nova-lite-v1`    | Amazon Nova Lite                                     |
+| Nova     | `nova/nova-pro-v1`     | Amazon Nova Pro                                      |
+| Nova     | `nova/nova-premier-v1` | Amazon Nova Premier                                  |
 | Ollama   | `ollama/<model-name>`  | Discovered from `/api/tags` when Ollama is reachable |
 
 > [!NOTE]
-> Ollama models are dynamic. If `NUXT_OLLAMA_BASE_URL` is not configured or Ollama is unreachable, the selector still shows the static MiniMax/GLM models.
+> Ollama models are dynamic. If `NUXT_OLLAMA_BASE_URL` is not configured or Ollama is unreachable, the selector still shows the static MiniMax/GLM/Nova models.
+> Nova extended reasoning is enabled with `high` effort only for `nova/nova-2-lite-v1`; other Nova models are called without `reasoning_effort`.
 
 ## Scripts
 
@@ -261,6 +363,10 @@ paperless-ui-chat/
 | `pnpm typecheck`    | Run Vue TypeScript type checking                 |
 | `pnpm db:generate`  | Generate Drizzle migrations                      |
 | `pnpm db:migrate`   | Run database migrations                          |
+
+## Acknowledgements
+
+Taan Mind started from the [Nuxt UI Chat Template](https://github.com/nuxt-ui-templates/chat), then evolved into a Paperless-ngx companion with document sync, OCR, AI metadata enrichment, and Docker-first deployment. Credit belongs to the template authors for the original UI and chat foundation; the Paperless-specific workflows and deployment changes were added for this project.
 
 ## License
 

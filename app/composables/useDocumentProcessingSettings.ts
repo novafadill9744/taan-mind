@@ -3,7 +3,7 @@ import type {
   DocumentProcessingSettingsPayload,
   ModelsResponse
 } from '#shared/utils/models'
-import { DEFAULT_DOCUMENT_PROCESSING_MODEL, MODELS } from '#shared/utils/models'
+import { DEFAULT_DOCUMENT_PROCESSING_MODEL, DOCUMENT_PROCESSING_MODELS } from '#shared/utils/models'
 
 /**
  * Fetches and updates global Paperless document processing settings.
@@ -33,13 +33,14 @@ export function useDocumentProcessingSettings() {
     refresh: refreshModels
   } = useLazyFetch<ModelsResponse>('/api/models', {
     key: 'document-processing-models',
-    default: () => ({ models: MODELS })
+    query: { scope: 'document-processing' },
+    default: () => ({ models: DOCUMENT_PROCESSING_MODELS })
   })
 
   /** Computed list of available models, falling back to static defaults when the API has not loaded yet. */
   const models = computed(() => {
     const availableModels = modelData.value?.models ?? []
-    return availableModels.length > 0 ? availableModels : MODELS
+    return availableModels.length > 0 ? availableModels : DOCUMENT_PROCESSING_MODELS
   })
 
   /**

@@ -1,15 +1,24 @@
 /**
  * @file AI model registry, type definitions, and validation helpers.
  *
- * Defines the static model catalog (MiniMax, GLM), dynamic Ollama model support,
+ * Defines the static model catalog (MiniMax, GLM, Nova), dynamic Ollama model support,
  * document processing settings types, and type guards used across server and client
  * to validate and resolve model identifiers.
  */
 /** Supported AI model provider names. */
-export type ModelProvider = 'minimax' | 'glm' | 'ollama'
+export type ModelProvider = 'minimax' | 'glm' | 'nova' | 'ollama'
 
 /** Union of all statically configured model identifiers in `provider/modelId` format. */
-export type StaticModelId = 'minimax/MiniMax-M2.7' | 'glm/glm-5' | 'glm/glm-5.1' | 'glm/glm-5-turbo'
+export type StaticModelId =
+  | 'minimax/MiniMax-M2.7'
+  | 'glm/glm-5'
+  | 'glm/glm-5.1'
+  | 'glm/glm-5-turbo'
+  | 'nova/nova-2-lite-v1'
+  | 'nova/nova-micro-v1'
+  | 'nova/nova-lite-v1'
+  | 'nova/nova-pro-v1'
+  | 'nova/nova-premier-v1'
 
 /** Dynamic Ollama model identifier in `ollama/modelName` format. */
 export type OllamaModelId = `ollama/${string}`
@@ -37,7 +46,7 @@ export interface ModelsResponse {
   models: ModelOption[]
 }
 
-/** All available AI models selectable by the user. */
+/** All available AI models selectable by chat users. */
 export const MODELS: ModelOption[] = [
   {
     label: 'MiniMax M2.7',
@@ -47,11 +56,47 @@ export const MODELS: ModelOption[] = [
   },
   { label: 'GLM 5', value: 'glm/glm-5', icon: 'i-lucide-sparkles', provider: 'glm' },
   { label: 'GLM 5.1', value: 'glm/glm-5.1', icon: 'i-lucide-sparkles', provider: 'glm' },
-  { label: 'GLM 5 Turbo', value: 'glm/glm-5-turbo', icon: 'i-lucide-bot', provider: 'glm' }
+  { label: 'GLM 5 Turbo', value: 'glm/glm-5-turbo', icon: 'i-lucide-bot', provider: 'glm' },
+  {
+    label: 'Amazon Nova 2 Lite',
+    value: 'nova/nova-2-lite-v1',
+    icon: 'i-lucide-cloud',
+    provider: 'nova'
+  },
+  {
+    label: 'Amazon Nova Micro',
+    value: 'nova/nova-micro-v1',
+    icon: 'i-lucide-cloud',
+    provider: 'nova'
+  },
+  {
+    label: 'Amazon Nova Lite',
+    value: 'nova/nova-lite-v1',
+    icon: 'i-lucide-cloud',
+    provider: 'nova'
+  },
+  {
+    label: 'Amazon Nova Pro',
+    value: 'nova/nova-pro-v1',
+    icon: 'i-lucide-cloud',
+    provider: 'nova'
+  },
+  {
+    label: 'Amazon Nova Premier',
+    value: 'nova/nova-premier-v1',
+    icon: 'i-lucide-cloud',
+    provider: 'nova'
+  }
 ]
 
 /** The default model used when no selection has been made. */
 export const DEFAULT_MODEL = MODELS[0]!.value
+
+/** Models allowed for background document enrichment after OCR. */
+export const DOCUMENT_PROCESSING_MODELS = MODELS.filter(model => model.provider !== 'nova')
+
+/** Nova models that support the `reasoning_effort` API parameter. */
+export const NOVA_REASONING_MODELS: ModelId[] = ['nova/nova-2-lite-v1']
 
 /** Case-insensitive marker used by Ollama OCR-only model names. */
 const OCR_MODEL_NAME_MARKER = 'ocr'
@@ -151,4 +196,35 @@ export function isSelectableModel(value: string): value is ModelId {
   }
 
   return true
+}
+
+/**
+ * Type guard that checks whether a model can be used for document enrichment.
+ *
+ * Nova models are chat-only for now, so background document processing keeps
+ * using MiniMax, GLM, or non-OCR Ollama models.
+ *
+ * @param value - The model ID to check.
+ * @returns `true` if the model can be selected for document processing.
+ */
+export function isDocumentProcessingModel(value: string): value is ModelId {
+  if (!isSelectableModel(value)) {
+    return false
+  }
+
+  const [provider] = value.split('/')
+  return provider !== 'nova'
+}
+
+/**
+ * Type guard that checks whether a model supports Nova extended reasoning.
+ *
+ * Keep this allow-list explicit because unsupported Nova models reject requests
+ * that include `reasoning_effort`.
+ *
+ * @param value - The model ID to check.
+ * @returns `true` if the Nova model supports reasoning.
+ */
+export function isNovaReasoningModel(value: string): value is ModelId {
+  return NOVA_REASONING_MODELS.some(model => model === value)
 }
